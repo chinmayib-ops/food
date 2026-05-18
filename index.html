@@ -4,10 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Bengaluru Eats — Your Filter-Coffee Logbook</title>
-<meta name="description" content="A personal, editorial logbook for rating where Bengaluru eats. Rate places, build your logbook, share it with friends — no account, no server." />
+<meta name="description" content="A personal, editorial logbook for rating where Bengaluru eats. Rate, note & photograph plates, build your logbook, map it, and share it with friends — no account, no server." />
+<meta property="og:title" content="Bengaluru Eats — Your Filter-Coffee Logbook" />
+<meta property="og:description" content="Rate, note & map every plate in the city. Share your logbook with friends. No account, no server." />
+<meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -22,6 +26,7 @@
     <nav>
       <a href="#logbook">The Logbook</a>
       <a href="#logbook" data-tab="all">Places</a>
+      <a href="#stats">Stats</a>
       <a href="#friends">Friends</a>
       <a href="#" data-add-place>Add a place</a>
     </nav>
@@ -37,12 +42,11 @@
       <span class="caret">▾</span>
     </button>
     <div class="profile-menu" data-profile-dropdown hidden>
-      <div class="pm-greet">
-        Signed in as <b data-profile-name>—</b>
-      </div>
+      <div class="pm-greet">Signed in as <b data-profile-name>—</b></div>
       <div class="pm-stat" data-profile-stat>0 plates rated</div>
       <hr/>
       <button type="button" data-share-open>Share my logbook</button>
+      <button type="button" data-print>Print / save as PDF</button>
       <button type="button" data-signout>Sign out</button>
     </div>
   </div>
@@ -52,13 +56,11 @@
 
 <!-- ============ WORDMARK ============ -->
 <header class="wordmark-band">
-  <h1 class="wordmark">
-    Bengaluru <span class="ampersand">&amp;</span> Eats
-  </h1>
+  <h1 class="wordmark">Bengaluru <span class="ampersand">&amp;</span> Eats</h1>
   <div class="strapline">
     <span>Your Personal Logbook</span>
     <span class="sep"></span>
-    <span>Rate Every Plate</span>
+    <span>Rate · Note · Map Every Plate</span>
     <span class="sep"></span>
     <span>Share With Friends</span>
   </div>
@@ -66,33 +68,25 @@
 
 <!-- ============ FEATURE SPREAD ============ -->
 <section class="feature">
-
   <div class="feature-text">
     <div class="kicker"><span class="num">01</span> How it works · Start here</div>
-
     <h1>
       Rate Bengaluru, <em>one&nbsp;plate</em><br/>
       at a time.
-      <span class="small">No account, no server. Your logbook lives on this device — share it as a link whenever you like.</span>
+      <span class="small">No account, no server. Your logbook — ratings, notes, photos &amp; map — lives on this device and shares as a single link.</span>
     </h1>
-
     <p class="standfirst">
-      Make a profile, rate the places you've actually eaten at, and watch your
-      logbook fill up. Add spots we missed, then trade logbooks with friends
-      using a single share code — and compare who's really tasted the city.
+      Make a profile, rate the places you've actually eaten at, add a note and a
+      photo, pin them on the map, and keep a wishlist of what's next. Trade
+      logbooks with friends using one share code and compare the city plate for plate.
     </p>
-
-    <a class="read-cta" href="#logbook">
-      Start your logbook <span class="arrow">→</span>
-    </a>
-
+    <a class="read-cta" href="#logbook">Start your logbook <span class="arrow">→</span></a>
     <div class="meta-line">
       <span>You <b data-meta-handle>not signed in</b></span>
       <span data-meta-count>0 plates rated</span>
       <span class="pg" data-meta-friends>0 friends</span>
     </div>
 
-    <!-- ============ FEATURED PLACE RATING DOCK ============ -->
     <div class="rate-dock" data-feature-dock>
       <div>
         <span class="place" data-feature-place>—</span>
@@ -108,7 +102,6 @@
           <span class="count" data-feature-count>No ratings yet</span>
         </div>
       </div>
-
       <div class="yours">
         <span class="lbl">Your rating</span>
         <div class="rate" data-max="5" data-value="0" data-place-id="brahmins-coffee-bar" tabindex="0" role="slider" aria-label="Rate this place">
@@ -118,117 +111,84 @@
         </div>
         <span class="your-value"><span class="unset">tap to rate</span></span>
       </div>
-
       <div class="acts">
-        <button type="button" class="like" data-like>
-          <span class="ico heart">♡</span> <span class="like-label">Like</span>
-        </button>
-        <button type="button" data-add-place>
-          <span class="ico">+</span> Add a place
-        </button>
-        <button type="button" data-share-open>
-          <span class="ico">⇪</span> Share logbook
-        </button>
-        <a class="see-all" href="#logbook">
-          See the logbook →
-        </a>
+        <button type="button" data-edit-entry="brahmins-coffee-bar"><span class="ico">✎</span> Add note &amp; photo</button>
+        <button type="button" data-add-place><span class="ico">+</span> Add a place</button>
+        <button type="button" data-share-open><span class="ico">⇪</span> Share logbook</button>
+        <a class="see-all" href="#logbook">See the logbook →</a>
       </div>
     </div>
-
   </div>
 
   <div class="photo-frame">
-    <div class="issue-stamp">
-      <div class="inner">
-        Logbook<span class="big">BE</span>Bengaluru Eats
-      </div>
-    </div>
-
-    <div class="photo">
-      <div class="photo-label" data-feature-label>YOUR CITY · ONE PLATE AT A TIME</div>
-    </div>
-
+    <div class="issue-stamp"><div class="inner">Logbook<span class="big">BE</span>Bengaluru Eats</div></div>
+    <div class="photo"><div class="photo-label" data-feature-label>YOUR CITY · ONE PLATE AT A TIME</div></div>
     <div class="photo-caption">
       <b>Plate I.</b>
       <span>Every place you rate is pinned here, in order of when you tasted it.</span>
       <span class="credit">© You / B.E.</span>
     </div>
   </div>
+</section>
 
+<hr class="dbl-rule"/>
+
+<!-- ============ STATS DASHBOARD ============ -->
+<section class="stats" id="stats">
+  <div class="stats-head">
+    <div class="lbl">By the numbers</div>
+    <h2>Your year in <em>plates</em>.</h2>
+  </div>
+  <div class="stats-grid" data-stats-grid>
+    <!-- rendered by script.js -->
+  </div>
 </section>
 
 <hr class="dbl-rule"/>
 
 <!-- ============ HOW IT WORKS ============ -->
 <section class="contents">
-
   <div class="contents-head">
     <div class="label">The five-step issue</div>
-    <h2>
-      Everything is <em>yours</em>, kept on your device, shareable in one&nbsp;link.
-    </h2>
-    <p>
-      No sign-up wall, no email. Work through these in order; we recommend with chai.
-    </p>
+    <h2>Everything is <em>yours</em>, kept on your device, shareable in one&nbsp;link.</h2>
+    <p>No sign-up wall, no email. Work through these in order; we recommend with chai.</p>
   </div>
-
   <div class="contents-list">
-
     <a class="toc-item" href="#" data-signin>
-      <div class="num">01</div>
-      <div class="thumb"></div>
-      <div class="body">
-        <h3>Create your <em>profile</em>.</h3>
+      <div class="num">01</div><div class="thumb"></div>
+      <div class="body"><h3>Create your <em>profile</em>.</h3>
         <div class="dek">A name and a handle, stored locally. That's the whole sign-up.</div>
-        <div class="byline">Step one · 10 seconds</div>
-      </div>
+        <div class="byline">Step one · 10 seconds</div></div>
       <div class="pg">01<span class="arrow">↗</span></div>
     </a>
-
     <a class="toc-item" href="#logbook" data-tab="all">
-      <div class="num">02</div>
-      <div class="thumb"></div>
-      <div class="body">
-        <h3>Browse the <em>places</em>.</h3>
-        <div class="dek">A starter set of well-known Bengaluru spots — unrated, waiting for your verdict.</div>
-        <div class="byline">Step two · The Logbook</div>
-      </div>
+      <div class="num">02</div><div class="thumb"></div>
+      <div class="body"><h3>Rate &amp; <em>note</em> a plate.</h3>
+        <div class="dek">Half-star precision, a note, a photo, the date you went — all optional.</div>
+        <div class="byline">Step two · The Logbook</div></div>
       <div class="pg">02</div>
     </a>
-
-    <a class="toc-item" href="#logbook" data-tab="all">
-      <div class="num">03</div>
-      <div class="thumb"></div>
-      <div class="body">
-        <h3>Rate what you've <em>eaten</em>.</h3>
-        <div class="dek">Half-star precision, mouse or keyboard. Saved the moment you click.</div>
-        <div class="byline">Step three · Your verdict</div>
-      </div>
+    <a class="toc-item" href="#logbook" data-tab="wishlist">
+      <div class="num">03</div><div class="thumb"></div>
+      <div class="body"><h3>Keep a <em>wishlist</em>.</h3>
+        <div class="dek">Places you haven't been yet — tracked separately until you tick them off.</div>
+        <div class="byline">Step three · Want to try</div></div>
       <div class="pg">03</div>
     </a>
-
     <a class="toc-item" href="#" data-add-place>
-      <div class="num">04</div>
-      <div class="thumb"></div>
-      <div class="body">
-        <h3>Add a <em>new</em> spot.</h3>
-        <div class="dek">Missed your favourite hole-in-the-wall? Add it with name, area and signature dish.</div>
-        <div class="byline">Step four · Your finds</div>
-      </div>
+      <div class="num">04</div><div class="thumb"></div>
+      <div class="body"><h3>Add a <em>new</em> spot.</h3>
+        <div class="dek">Missed your favourite hole-in-the-wall? Add it with name, area &amp; cuisine.</div>
+        <div class="byline">Step four · Your finds</div></div>
       <div class="pg">04</div>
     </a>
-
     <a class="toc-item" href="#friends">
-      <div class="num">05</div>
-      <div class="thumb"></div>
-      <div class="body">
-        <h3>Share with <em>friends</em>.</h3>
-        <div class="dek">Copy your logbook link; paste theirs. Compare the city, no server required.</div>
-        <div class="byline">Step five · Friends</div>
-      </div>
+      <div class="num">05</div><div class="thumb"></div>
+      <div class="body"><h3>Share &amp; <em>compare</em>.</h3>
+        <div class="dek">Copy your logbook link; paste theirs. Compare the city side by side.</div>
+        <div class="byline">Step five · Friends</div></div>
       <div class="pg">05</div>
     </a>
-
   </div>
 </section>
 
@@ -242,15 +202,39 @@
     <div class="filters" data-logbook-filters>
       <a href="#logbook" class="on" data-tab="all">All places</a>
       <a href="#logbook" data-tab="mine">Rated by you</a>
+      <a href="#logbook" data-tab="wishlist">Wishlist</a>
       <a href="#logbook" data-tab="friends">From friends</a>
       <button type="button" class="add-place-btn" data-add-place>+ Add a place</button>
     </div>
   </div>
 
-  <div class="log-grid" data-log-grid>
-    <!-- rendered by script.js -->
+  <div class="toolbar">
+    <input type="search" class="tb-search" data-search placeholder="Search name, area or cuisine…" />
+    <select class="tb-select" data-filter-cuisine aria-label="Filter by cuisine">
+      <option value="">All cuisines</option>
+    </select>
+    <select class="tb-select" data-filter-rating aria-label="Filter by rating">
+      <option value="0">Any rating</option>
+      <option value="4.5">4.5★ &amp; up</option>
+      <option value="4">4★ &amp; up</option>
+      <option value="3">3★ &amp; up</option>
+    </select>
+    <select class="tb-select" data-sort aria-label="Sort">
+      <option value="default">Sort: default</option>
+      <option value="rating-desc">Highest rated</option>
+      <option value="recent">Recently logged</option>
+      <option value="alpha">A → Z</option>
+      <option value="area">By area</option>
+    </select>
+    <div class="tb-views">
+      <button type="button" class="tb-view on" data-view="grid" aria-label="Grid view">▦ Grid</button>
+      <button type="button" class="tb-view" data-view="map" aria-label="Map view">⊕ Map</button>
+    </div>
+    <button type="button" class="tb-print" data-print aria-label="Print or save as PDF">⎙ PDF</button>
   </div>
 
+  <div class="log-grid" data-log-grid><!-- rendered by script.js --></div>
+  <div id="map" class="map-view" data-map hidden></div>
   <div class="empty-state" data-log-empty hidden></div>
 </section>
 
@@ -265,18 +249,16 @@
   </div>
 
   <div class="share-grid">
-
     <div class="share-card">
       <div class="sc-label">Your share code</div>
       <h3>Send your logbook to a <em>friend</em>.</h3>
-      <p class="sc-sub">One link. They open it, your rated plates land in their Friends feed.</p>
+      <p class="sc-sub">One link. They open it, your rated plates &amp; notes land in their Friends feed. (Photos stay on your device — too big to share in a link.)</p>
       <div class="sc-code-row">
         <input type="text" data-share-link readonly value="Sign in to generate your link" />
         <button type="button" class="sc-btn" data-share-copy>Copy link</button>
       </div>
       <div class="sc-hint" data-share-hint>You need a profile before you can share.</div>
     </div>
-
     <div class="share-card">
       <div class="sc-label">Add a friend</div>
       <h3>Paste a friend's <em>code</em> or link.</h3>
@@ -287,12 +269,9 @@
       </div>
       <div class="sc-hint">Nothing is uploaded — decoding happens in your browser.</div>
     </div>
-
   </div>
 
-  <div class="friends-list" data-friends-list>
-    <!-- rendered by script.js -->
-  </div>
+  <div class="friends-list" data-friends-list><!-- rendered by script.js --></div>
 </section>
 
 <!-- ============ END FOOT ============ -->
@@ -302,10 +281,7 @@
     <a href="#friends">Friends</a>
     <a href="#" data-add-place>Add a place</a>
   </div>
-  <div class="price">
-    Bengaluru Eats
-    <span>A logbook for how a city eats</span>
-  </div>
+  <div class="price">Bengaluru Eats<span>A logbook for how a city eats</span></div>
   <div class="right">
     <a href="#top">Back to top</a>
     <a href="#" data-share-open>Share</a>
@@ -322,22 +298,13 @@
     <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
     <div class="modal-eyebrow">Welcome, eater</div>
     <h2 id="signin-title">Create your <em>profile</em>.</h2>
-    <p class="modal-sub">
-      Two fields, no email. Saved on this device so you can rate
-      every plate, build a logbook, and share it with friends.
-    </p>
+    <p class="modal-sub">Two fields, no email. Saved on this device so you can rate every plate, build a logbook, and share it with friends.</p>
     <form data-signin-form>
-      <label class="modal-field">
-        <span>Your name</span>
-        <input type="text" name="name" required maxlength="40" autocomplete="name" placeholder="e.g. Anjali Mehta" />
-      </label>
-      <label class="modal-field">
-        <span>Handle <em>(optional)</em></span>
-        <input type="text" name="handle" maxlength="20" autocomplete="off" placeholder="anjali.m" />
-      </label>
-      <button type="submit" class="modal-cta">
-        Start the logbook <span class="arrow">→</span>
-      </button>
+      <label class="modal-field"><span>Your name</span>
+        <input type="text" name="name" required maxlength="40" autocomplete="name" placeholder="e.g. Anjali Mehta" /></label>
+      <label class="modal-field"><span>Handle <em>(optional)</em></span>
+        <input type="text" name="handle" maxlength="20" autocomplete="off" placeholder="anjali.m" /></label>
+      <button type="submit" class="modal-cta">Start the logbook <span class="arrow">→</span></button>
       <p class="modal-fine">Stored locally — no server, no spam, no signup.</p>
     </form>
   </div>
@@ -349,34 +316,78 @@
     <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
     <div class="modal-eyebrow">A new entry</div>
     <h2 id="addplace-title">Add a <em>place</em>.</h2>
-    <p class="modal-sub">
-      Somewhere we missed? Put it on the map. It joins your logbook and
-      travels in your share code.
-    </p>
+    <p class="modal-sub">Somewhere we missed? Put it on the map. It joins your logbook and travels in your share code.</p>
     <form data-addplace-form>
-      <label class="modal-field">
-        <span>Place name</span>
-        <input type="text" name="name" required maxlength="50" placeholder="e.g. Taaza Thindi" />
-      </label>
-      <label class="modal-field">
-        <span>Area / neighbourhood</span>
-        <input type="text" name="hood" required maxlength="40" placeholder="e.g. Banashankari" />
-      </label>
-      <label class="modal-field">
-        <span>Signature dish</span>
-        <input type="text" name="dish" maxlength="40" placeholder="e.g. Set Dosa (optional)" />
-      </label>
-      <button type="submit" class="modal-cta">
-        Add to the logbook <span class="arrow">→</span>
-      </button>
-      <p class="modal-fine">You can rate it right after adding.</p>
+      <label class="modal-field"><span>Place name</span>
+        <input type="text" name="name" required maxlength="50" placeholder="e.g. Taaza Thindi" /></label>
+      <label class="modal-field"><span>Area / neighbourhood</span>
+        <input type="text" name="hood" required maxlength="40" placeholder="e.g. Banashankari" /></label>
+      <div class="modal-row">
+        <label class="modal-field"><span>Cuisine</span>
+          <select name="cuisine" data-cuisine-select></select></label>
+        <label class="modal-field"><span>Signature dish</span>
+          <input type="text" name="dish" maxlength="40" placeholder="e.g. Set Dosa" /></label>
+      </div>
+      <label class="modal-check"><input type="checkbox" name="wishlist" /> <span>Add to my wishlist (haven't been yet)</span></label>
+      <button type="submit" class="modal-cta">Add to the logbook <span class="arrow">→</span></button>
     </form>
+  </div>
+</div>
+
+<!-- ============ ENTRY MODAL (rate + note + photo + date) ============ -->
+<div class="modal-backdrop" data-modal="entry" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <div class="modal-eyebrow" data-entry-eyebrow>Your verdict</div>
+    <h2 id="entry-title" data-entry-title>Rate this <em>place</em>.</h2>
+    <p class="modal-sub" data-entry-sub>—</p>
+    <form data-entry-form>
+      <input type="hidden" name="placeId" />
+      <div class="entry-rate-block">
+        <span class="modal-flabel">Your rating</span>
+        <div class="rate entry-rate" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate this place">
+          <span class="rate-bg">★★★★★</span>
+          <span class="rate-fg" style="width:0%">★★★★★</span>
+          <span class="rate-hov" style="width:0%">★★★★★</span>
+        </div>
+        <span class="entry-rate-val" data-entry-rateval>not rated</span>
+      </div>
+      <label class="modal-field"><span>Notes</span>
+        <textarea name="note" rows="3" maxlength="600" placeholder="Best benne dosa I've had — crisp edges, generous chutney…"></textarea></label>
+      <div class="modal-row">
+        <label class="modal-field"><span>Date visited</span>
+          <input type="date" name="visitedAt" /></label>
+        <label class="modal-field"><span>Photo of the dish</span>
+          <input type="file" name="photo" accept="image/*" data-photo-input />
+          <span class="photo-fine">Compressed &amp; stored on this device only.</span></label>
+      </div>
+      <div class="entry-photo-preview" data-photo-preview hidden>
+        <img alt="dish preview" data-photo-img />
+        <button type="button" class="photo-remove" data-photo-remove>Remove photo</button>
+      </div>
+      <div class="entry-actions">
+        <button type="button" class="entry-delete" data-entry-delete hidden>Delete this entry</button>
+        <button type="submit" class="modal-cta">Save to logbook <span class="arrow">→</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ COMPARE MODAL ============ -->
+<div class="modal-backdrop" data-modal="compare" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="compare-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <div class="modal-eyebrow">Head to head</div>
+    <h2 id="compare-title" data-compare-title>You <em>vs.</em> —</h2>
+    <p class="modal-sub" data-compare-sub>Places you've both rated, side by side.</p>
+    <div class="compare-table" data-compare-body></div>
   </div>
 </div>
 
 <!-- ============ TOAST ============ -->
 <div class="toast" data-toast hidden></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="script.js" defer></script>
 </body>
 </html>
