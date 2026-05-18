@@ -11,6 +11,6 @@
    localStorage-only mode (no accounts, no sync).
    ============================================================ */
 window.BE_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: ""
+  SUPABASE_URL: "https://hdjvdkywgwfgyhtmfikg.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_iPC0tMhGIU_s2AqIUFuwGQ_rz66Jc46"
 };
