@@ -1469,6 +1469,18 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   .tb-select,.tb-view,.tb-print{ font-size: 10px; padding: 9px 10px; }
 }
 
+/* ============ CLOUD / OFFLINE TOGGLE ============ */
+.cloud-only, .local-only{ display: none; }
+html.cloud-mode .cloud-only{ display: block; }
+html:not(.cloud-mode) .local-only{ display: block; }
+.pm-sync{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 8px;
+}
+body[data-sync="cloud"] .pm-sync{ color: var(--olive); }
+body[data-sync="syncing"] .pm-sync{ color: var(--terra); }
+
 /* ============ PRINT / PDF ============ */
 @media print{
   @page{ margin: 16mm; }

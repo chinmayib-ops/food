@@ -33,6 +33,7 @@ const SEED_PLACES = [
   { id:'third-wave',          name:'Third Wave Coffee',    hood:'Indiranagar',     cuisine:'Café',         dish:'Flat White',           lat:12.9719, lng:77.6412 },
   { id:'albert-bakery',       name:'Albert Bakery',        hood:'Frazer Town',     cuisine:'Bakery',       dish:'Mutton Samosa',        lat:12.9981, lng:77.6190 },
 ];
+window.__SEED_IDS = new Set(SEED_PLACES.map(p=>p.id));
 
 /* neighbourhood centroids — used to place custom spots on the map */
 const HOODS = {
@@ -148,6 +149,158 @@ function emit(n,d){ document.dispatchEvent(new CustomEvent(n,{detail:d})); }
     });
     localStorage.setItem(KEY_ENTRIES, JSON.stringify(e));
   }
+})();
+
+/* ============================================================
+   CLOUD SYNC (Supabase) — offline-first.
+   localStorage stays the synchronous source for rendering;
+   this layer pulls/merges on sign-in & realtime, pushes on edit.
+   No-ops entirely when window.Cloud.enabled is false.
+   ============================================================ */
+const Sync = (function(){
+  const C = window.Cloud || { enabled:false };
+  let me=null, profileRow=null, ready=false, pushT=null;
+  const cloud=()=>C.enabled;
+
+  function setStatus(s){
+    const el=document.querySelector('[data-sync-status]');
+    if(el) el.textContent = s==='syncing'?'⟳ syncing…':s==='cloud'?'☁ synced across devices':'● offline';
+    document.body.dataset.sync=s;
+  }
+
+  async function ensureProfile(user){
+    me=user;
+    profileRow=await C.DB.getProfile(user.id);
+    if(!profileRow){ openModal('handle'); return false; }
+    Profile.set({ name:profileRow.name, handle:profileRow.handle, id:user.id, cloud:true, joinedAt:new Date().toISOString() });
+    return true;
+  }
+  async function saveProfile(name, handle){
+    if(!me) return false;
+    handle=slugify(handle||name);
+    if(!handle){ Toast.show('Pick a handle'); return false; }
+    if(await C.DB.handleTaken(handle, me.id)){ Toast.show('Handle <em>@'+esc(handle)+'</em> is taken'); return false; }
+    const err=await C.DB.upsertProfile({ id:me.id, name, handle });
+    if(err){ Toast.show('Could not save profile'); return false; }
+    profileRow={ id:me.id, name, handle };
+    Profile.set({ name, handle, id:me.id, cloud:true, joinedAt:new Date().toISOString() });
+    await pull();
+    C.Realtime.subscribe(onRealtime);
+    return true;
+  }
+
+  function localEntryRows(){
+    return Object.entries(Entries.all())
+      .filter(([,e])=>e.rating||e.note||e.photo)
+      .map(([pid,e])=>({ user_id:me.id, place_id:pid, rating:e.rating||0,
+        note:e.note||'', visited_at:e.visitedAt||null,
+        photo_url:(e.photo&&/^https?:/.test(e.photo))?e.photo:null,
+        updated_at:e.updatedAt||new Date().toISOString() }));
+  }
+
+  async function pull(){
+    if(!cloud()||!me) return;
+    setStatus('syncing');
+    try{
+      // places (union into local custom)
+      const cp=await C.DB.listPlaces();
+      const lc=Places.custom(); const seen=new Set(lc.map(p=>p.id));
+      cp.forEach(p=>{ if(!seen.has(p.id)&&!window.__SEED_IDS.has(p.id))
+        lc.push({id:p.id,name:p.name,hood:p.hood,cuisine:p.cuisine,dish:p.dish,lat:p.lat,lng:p.lng,custom:true}); });
+      localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
+      // my entries (cloud authoritative, but keep strictly-newer local edits)
+      const ce=await C.DB.listMyEntries(me.id), local=Entries.all(), merged={};
+      ce.forEach(r=>{ merged[r.place_id]={ rating:Number(r.rating)||0, note:r.note||'',
+        photo:r.photo_url||null, visitedAt:r.visited_at||'', createdAt:r.updated_at, updatedAt:r.updated_at }; });
+      Object.entries(local).forEach(([pid,e])=>{ const c=merged[pid];
+        if(!c||new Date(e.updatedAt||0)>new Date(c.updatedAt||0)) merged[pid]=e; });
+      localStorage.setItem(KEY_ENTRIES, JSON.stringify(merged));
+      // wishlist (union)
+      const wl=await C.DB.listWishlist(me.id);
+      const u=Array.from(new Set([...(loadJSON(KEY_WISHLIST,[])), ...wl]));
+      localStorage.setItem(KEY_WISHLIST, JSON.stringify(u));
+      // friends + their entries
+      const fr=await C.DB.listFriends(me.id), objs=[];
+      for(const f of fr){
+        const fe=await C.DB.listFriendEntries(f.id), en={};
+        fe.forEach(r=>{ en[r.place_id]={ rating:Number(r.rating)||0, note:r.note||'', visitedAt:r.visited_at||'' }; });
+        objs.push({ name:f.name, handle:f.handle, uid:f.id, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
+      }
+      const keep=loadJSON(KEY_FRIENDS,[]).filter(x=>!x.cloud);
+      localStorage.setItem(KEY_FRIENDS, JSON.stringify([...keep,...objs]));
+      ready=true; setStatus('cloud');
+      document.dispatchEvent(new CustomEvent('data:change'));
+    }catch(err){ setStatus('cloud'); }
+  }
+
+  function schedulePush(){ if(!cloud()||!me||!ready) return; clearTimeout(pushT); pushT=setTimeout(push,900); }
+  async function push(){
+    if(!cloud()||!me||!ready) return;
+    setStatus('syncing');
+    try{
+      const rows=localEntryRows();
+      await C.DB.upsertEntries(rows);
+      await C.DB.deleteEntriesExcept(me.id, rows.map(r=>r.place_id));
+      const cps=Places.custom().map(p=>({ id:p.id,name:p.name,hood:p.hood,
+        cuisine:p.cuisine||null,dish:p.dish||null,lat:p.lat??null,lng:p.lng??null,created_by:me.id }));
+      if(cps.length) await C.DB.upsertPlaces(cps);
+      await C.DB.setWishlist(me.id, loadJSON(KEY_WISHLIST,[]));
+      setStatus('cloud');
+    }catch(err){ setStatus('cloud'); }
+  }
+
+  async function uploadPendingPhoto(placeId, dataURL){
+    if(!cloud()||!me) return dataURL;
+    const url=await C.Storage.uploadPhoto(me.id, placeId, dataURL);
+    return url||dataURL;
+  }
+
+  async function addFriendByHandle(h){
+    if(!cloud()||!me){ Toast.show('Sign in to add friends by handle'); return false; }
+    const prof=await C.DB.findByHandle(h.replace(/^@/,'').trim());
+    if(!prof){ Toast.show('No eater with that handle'); return false; }
+    if(prof.id===me.id){ Toast.show("That's your own handle"); return false; }
+    const err=await C.DB.addFriend(me.id, prof.id);
+    if(err){ Toast.show('Could not add friend'); return false; }
+    Toast.show(esc(prof.name.split(' ')[0])+' added · syncing their logbook');
+    await pull();
+    return true;
+  }
+  async function removeFriendCloud(handle){
+    if(!cloud()||!me) return;
+    const f=loadJSON(KEY_FRIENDS,[]).find(x=>x.handle===handle&&x.cloud);
+    if(f&&f.uid) await C.DB.removeFriend(me.id, f.uid);
+  }
+
+  function onRealtime(payload){
+    const uid=payload&&((payload.new&&payload.new.user_id)||(payload.old&&payload.old.user_id));
+    if(uid&&me&&uid===me.id) return;        // ignore our own write echo (prevents loop)
+    clearTimeout(pushT); setTimeout(pull,600);
+  }
+
+  async function boot(){
+    if(!cloud()){ setStatus('offline'); return; }
+    setStatus('offline');
+    C.Auth.onChange(async (evt,sess)=>{
+      if(sess&&sess.user){
+        const ok=await ensureProfile(sess.user);
+        if(ok){ await pull(); C.Realtime.subscribe(onRealtime); }
+        renderAll();
+      } else if(evt==='SIGNED_OUT'){
+        me=null; profileRow=null; ready=false;
+        Profile.clear(); setStatus('offline'); renderAll();
+      }
+    });
+    const sess=await C.Auth.session();
+    if(sess&&sess.user){
+      const ok=await ensureProfile(sess.user);
+      if(ok){ await pull(); C.Realtime.subscribe(onRealtime); }
+      renderAll();
+    }
+  }
+
+  return { boot, pull, schedulePush, saveProfile, addFriendByHandle,
+           removeFriendCloud, uploadPendingPhoto, isCloud:cloud, hasSession:()=>!!me };
 })();
 
 /* ---------- aggregate (you + friends) ---------- */
@@ -584,10 +737,12 @@ function openEntry(placeId){
 
 function initModals(){
   document.querySelectorAll('[data-modal]').forEach(m=>{
-    m.addEventListener('click',e=>{ if(e.target===m) closeModal(m); });
+    if(m.dataset.modal!=='handle')
+      m.addEventListener('click',e=>{ if(e.target===m) closeModal(m); });
     const x=m.querySelector('[data-modal-close]'); if(x) x.addEventListener('click',()=>closeModal(m));
   });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('[data-modal]:not([hidden])').forEach(closeModal); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape')
+    document.querySelectorAll('[data-modal]:not([hidden])').forEach(m=>{ if(m.dataset.modal!=='handle') closeModal(m); }); });
 
   // populate cuisine selects
   const opts=CUISINES.map(c=>`<option value="${c}">${c}</option>`).join('');
@@ -595,14 +750,41 @@ function initModals(){
   const fcz=document.querySelector('[data-filter-cuisine]');
   if(fcz) fcz.innerHTML='<option value="">All cuisines</option>'+opts;
 
-  // sign-in
+  // cloud sign-in (email magic-link)
   const sf=document.querySelector('[data-signin-form]');
-  sf && sf.addEventListener('submit',e=>{ e.preventDefault();
-    const fd=new FormData(sf); const name=(fd.get('name')||'').toString().trim();
+  sf && sf.addEventListener('submit', async e=>{ e.preventDefault();
+    const email=(new FormData(sf).get('email')||'').toString().trim();
+    if(!email || !(window.Cloud&&window.Cloud.enabled)) return;
+    const btn=sf.querySelector('button'); if(btn) btn.disabled=true;
+    const { error }=await window.Cloud.Auth.signInEmail(email);
+    if(btn) btn.disabled=false;
+    if(error){ Toast.show('Could not send link — check the email'); return; }
+    sf.reset(); closeModal(sf.closest('[data-modal]'));
+    Toast.show('Check <em>'+esc(email)+'</em> for your sign-in link ✉');
+  });
+
+  // offline sign-in (local name + handle)
+  const lf=document.querySelector('[data-signin-form-local]');
+  lf && lf.addEventListener('submit',e=>{ e.preventDefault();
+    const fd=new FormData(lf); const name=(fd.get('name')||'').toString().trim();
     let h=(fd.get('handle')||'').toString().trim(); if(!name) return;
     Profile.set({name,handle:slugify(h||name),joinedAt:new Date().toISOString()});
-    sf.reset(); closeModal(sf.closest('[data-modal]'));
+    lf.reset(); closeModal(lf.closest('[data-modal]'));
     Toast.show('Welcome, <em>'+esc(name.split(' ')[0])+'</em> · start rating →');
+  });
+
+  // cloud handle setup (after first magic-link sign-in)
+  const hf=document.querySelector('[data-handle-form]');
+  hf && hf.addEventListener('submit', async e=>{ e.preventDefault();
+    const fd=new FormData(hf);
+    const name=(fd.get('name')||'').toString().trim();
+    const handle=(fd.get('handle')||'').toString().trim();
+    if(!name||!handle) return;
+    const btn=hf.querySelector('button'); if(btn) btn.disabled=true;
+    const ok=await Sync.saveProfile(name, handle);
+    if(btn) btn.disabled=false;
+    if(ok){ hf.reset(); closeModal(hf.closest('[data-modal]'));
+      Toast.show('Welcome, <em>'+esc(name.split(' ')[0])+'</em> · synced to the cloud ☁'); renderAll(); }
   });
 
   // add place
@@ -645,11 +827,18 @@ function initModals(){
 
   // entry: save / delete
   const ef=document.querySelector('[data-entry-form]');
-  ef && ef.addEventListener('submit',e=>{ e.preventDefault();
+  ef && ef.addEventListener('submit', async e=>{ e.preventDefault();
     const id=ef.placeId.value;
     const rating=parseFloat(document.querySelector('.entry-rate').dataset.value||'0')||0;
     const patch={ rating, note:ef.note.value.trim(), visitedAt:ef.visitedAt.value||'' };
-    if(pendingPhoto!==undefined) patch.photo=pendingPhoto; // null clears, string sets
+    if(pendingPhoto!==undefined){
+      let ph=pendingPhoto; // null clears, string sets
+      if(ph && /^data:/.test(ph) && Sync.isCloud() && Sync.hasSession()){
+        Toast.show('Uploading photo…');
+        ph=await Sync.uploadPendingPhoto(id, ph);
+      }
+      patch.photo=ph;
+    }
     Entries.set(id,patch);
     closeModal(ef.closest('[data-modal]'));
     Toast.show('Saved <em>'+esc(Places.byId(id)?.name||'entry')+'</em>');
@@ -669,7 +858,9 @@ function initProfileMenu(){
   chip.addEventListener('click',e=>{ e.stopPropagation(); dd.hidden=!dd.hidden; });
   document.addEventListener('click',e=>{ if(!dd.hidden&&!dd.contains(e.target)&&e.target!==chip) dd.hidden=true; });
   const so=document.querySelector('[data-signout]');
-  so && so.addEventListener('click',()=>{ Profile.clear(); dd.hidden=true; Toast.show('Signed out · your ratings stay on this device'); });
+  so && so.addEventListener('click',()=>{ dd.hidden=true;
+    if(Sync.isCloud()){ window.Cloud.Auth.signOut(); }
+    Profile.clear(); Toast.show('Signed out · local cache kept on this device'); });
 }
 
 /* ---------- toolbar ---------- */
@@ -697,7 +888,7 @@ function initActions(){
     const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],a[href^="#"]');
     if(!t) return;
 
-    if(t.matches('[data-friend-remove]')){ e.preventDefault(); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
+    if(t.matches('[data-friend-remove]')){ e.preventDefault(); Sync.removeFriendCloud(t.dataset.friendRemove); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
     if(t.matches('[data-compare]')){ e.preventDefault(); openCompare(t.dataset.compare); return; }
     if(t.matches('[data-edit-entry]')){ e.preventDefault(); openEntry(t.dataset.editEntry); return; }
     if(t.matches('[data-wish]')){ e.preventDefault(); e.stopPropagation();
@@ -723,7 +914,12 @@ function initActions(){
       const l=shareLink(); if(!l){ openModal('signin'); Toast.show('Sign in to get a share link'); return; }
       navigator.clipboard?.writeText(l).then(()=>Toast.show('Share link copied · send it to a friend'),
         ()=>{ const i=document.querySelector('[data-share-link]'); i.select(); document.execCommand('copy'); Toast.show('Share link copied'); }); return; }
-    if(t.hasAttribute('data-friend-add')){ e.preventDefault(); importCode(document.querySelector('[data-friend-input]').value); return; }
+    if(t.hasAttribute('data-friend-add')){ e.preventDefault();
+      const v=document.querySelector('[data-friend-input]').value.trim();
+      if(Sync.isCloud() && Sync.hasSession() && v && !/#friend=/.test(v) && /^@?[a-z0-9._-]{2,30}$/i.test(v)){
+        Sync.addFriendByHandle(v).then(ok=>{ if(ok){ const fi=document.querySelector('[data-friend-input]'); if(fi) fi.value=''; } });
+      } else { importCode(v); }
+      return; }
     if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.view='grid'; syncToolbarUI(); renderLogbook();
       document.getElementById('logbook').scrollIntoView({behavior:'smooth'}); return; }
 
@@ -742,6 +938,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.rate-dock .rate').forEach(r=>initRating(r));
   initModals(); initProfileMenu(); initToolbar(); initActions();
   syncToolbarUI(); renderAll();
+  Sync.boot();
   if(location.hash.startsWith('#friend=')){
     const code=location.hash.slice('#friend='.length);
     history.replaceState(null,'',location.pathname+location.search);
@@ -749,4 +946,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 });
 document.addEventListener('profile:change',renderAll);
-document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); });
+document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); Sync.schedulePush(); });
