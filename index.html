@@ -29,6 +29,7 @@
       <a href="#stats">Stats</a>
       <a href="#friends">Friends</a>
       <a href="#" data-add-place>Add a place</a>
+      <a href="#" class="spin-nav" data-spin-open>🫓 Spin</a>
     </nav>
   </div>
   <div class="right">
@@ -54,6 +55,9 @@
 </div>
 
 <span id="top"></span>
+
+<!-- ============ PENDING SPIN BANNER ============ -->
+<div class="pending-spin" data-pending-spin hidden></div>
 
 <!-- ============ WORDMARK ============ -->
 <header class="wordmark-band">
@@ -206,6 +210,7 @@
       <a href="#logbook" data-tab="wishlist">Wishlist</a>
       <a href="#logbook" data-tab="friends">From friends</a>
       <button type="button" class="add-place-btn" data-add-place>+ Add a place</button>
+      <button type="button" class="spin-btn" data-spin-open>🫓 Spin the Dosa</button>
     </div>
   </div>
 
@@ -412,6 +417,117 @@
     <h2 id="compare-title" data-compare-title>You <em>vs.</em> —</h2>
     <p class="modal-sub" data-compare-sub>Places you've both rated, side by side.</p>
     <div class="compare-table" data-compare-body></div>
+  </div>
+</div>
+
+<!-- ============ SPIN THE DOSA MODAL ============ -->
+<div class="modal-backdrop spin-modal" data-modal="spin" hidden>
+  <div class="modal modal-spin" role="dialog" aria-modal="true" aria-labelledby="spin-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+
+    <!-- STEP 1: pre-spin -->
+    <div data-spin-step="1">
+      <div class="modal-eyebrow">Spin the Dosa</div>
+      <h2 id="spin-title">Decide for me. <em>Surprise me</em>.</h2>
+      <p class="modal-sub">Pick a cuisine or leave it open. The spin weighs distance, your taste, your wishlist, and friends.</p>
+
+      <div class="spin-filter-lbl">Cuisine</div>
+      <div class="cuisine-chips" data-spin-cuisines></div>
+
+      <label class="spin-geo">
+        <input type="checkbox" data-spin-geo />
+        <span>Use my location <em>(boost nearby places)</em></span>
+        <span class="spin-geo-status" data-spin-geo-status></span>
+      </label>
+
+      <button type="button" class="modal-cta spin-go" data-spin-start>🫓 Spin <span class="arrow">→</span></button>
+      <p class="modal-fine">Pure RNG is boring. This one knows you.</p>
+    </div>
+
+    <!-- STEP 2: cycling + result -->
+    <div data-spin-step="2" hidden>
+      <div class="spin-stage" data-spin-stage>
+        <div class="spin-disc">🫓</div>
+        <div class="spin-cycler" data-spin-cycler>…</div>
+      </div>
+      <div class="spin-result" data-spin-result hidden>
+        <div class="modal-eyebrow">The dosa says</div>
+        <h2 class="spin-place-name" data-spin-place-name>—</h2>
+        <div class="spin-place-meta" data-spin-place-meta>—</div>
+        <div class="spin-friend-signal" data-spin-friend-signal></div>
+        <div class="spin-why" data-spin-why></div>
+        <div class="spin-cta-row">
+          <button type="button" class="modal-cta spin-go" data-spin-lock>I'm going here <span class="arrow">→</span></button>
+          <button type="button" class="modal-secondary" data-spin-again>Spin again</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: check-in -->
+    <div data-spin-step="3" hidden>
+      <div class="modal-eyebrow">Locked in · check in when you're there</div>
+      <h2 class="spin-locked-name" data-spin-locked-name>—</h2>
+      <p class="modal-sub">Verify your visit to unlock the <b>✦ Adventurous Visit</b> badge on your review.</p>
+
+      <div class="checkin-methods">
+        <label class="checkin-method primary">
+          <input type="file" accept="image/*" capture="environment" data-spin-bill hidden />
+          <span class="cm-ico">📸</span>
+          <div>
+            <div class="cm-title">Photo of the bill</div>
+            <div class="cm-sub">Snap your receipt — quickest verify</div>
+          </div>
+        </label>
+        <button type="button" class="checkin-method" data-spin-gps>
+          <span class="cm-ico">📍</span>
+          <div>
+            <div class="cm-title">Use my location</div>
+            <div class="cm-sub" data-spin-gps-sub>Verify by GPS (within ~250 m)</div>
+          </div>
+        </button>
+        <button type="button" class="checkin-method dim" data-spin-manual>
+          <span class="cm-ico">·</span>
+          <div>
+            <div class="cm-title">Skip verification</div>
+            <div class="cm-sub">Rate it normally, no badge</div>
+          </div>
+        </button>
+      </div>
+      <div class="bill-preview" data-spin-bill-preview hidden></div>
+    </div>
+
+    <!-- STEP 4: super-rating -->
+    <div data-spin-step="4" hidden>
+      <div class="super-badge"><span>✦</span> Adventurous Visit <em data-spin-verified-by></em></div>
+      <h2 class="spin-rated-name" data-spin-rated-name>—</h2>
+      <p class="modal-sub">The dosa sent you here. <em>How was it?</em></p>
+
+      <form data-super-form>
+        <input type="hidden" name="placeId" />
+
+        <div class="modal-field super-overall">
+          <span>Overall</span>
+          <div class="rate super-rate" data-max="5" data-value="0" data-super="overall" tabindex="0" role="slider" aria-label="Overall rating">
+            <span class="rate-bg">★★★★★</span>
+            <span class="rate-fg" style="width:0%">★★★★★</span>
+            <span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+        </div>
+
+        <div class="dish-block">
+          <div class="dish-block-lbl">Dish-level breakdown</div>
+          <div class="dish-rows" data-dish-rows></div>
+          <button type="button" class="link-btn" data-add-dish>+ Add another dish</button>
+        </div>
+
+        <label class="modal-field">
+          <span>Notes <em>(optional)</em></span>
+          <textarea name="note" rows="3" maxlength="280" placeholder="What surprised you?"></textarea>
+        </label>
+
+        <button type="submit" class="modal-cta">Save adventurous review <span class="arrow">→</span></button>
+      </form>
+    </div>
   </div>
 </div>
 

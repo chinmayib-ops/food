@@ -1469,6 +1469,310 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   .tb-select,.tb-view,.tb-print{ font-size: 10px; padding: 9px 10px; }
 }
 
+/* ============================================================
+   SPIN THE DOSA
+   ============================================================ */
+
+/* Pending banner */
+.pending-spin{
+  position: relative; z-index: 4;
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 22px;
+  background: linear-gradient(90deg, rgba(181,74,46,.10), rgba(181,74,46,.02));
+  border-bottom: 1px solid var(--terra);
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .12em; color: var(--ink);
+}
+.pending-spin .ps-ico{ font-size: 18px; }
+.pending-spin .ps-text{ flex: 1; min-width: 0; line-height: 1.4;
+  text-transform: uppercase; letter-spacing: .15em; font-size: 11px; }
+.pending-spin .ps-text b{ color: var(--terra); font-weight: 500; letter-spacing: .04em;
+  font-family: var(--ff-disp); font-size: 16px; text-transform: none; }
+.pending-spin .ps-text em{ font-style: italic; color: var(--ink-soft); text-transform: none; letter-spacing: .04em; }
+.pending-spin .ps-go{
+  background: var(--ink); color: var(--paper); border: 0;
+  padding: 8px 14px; font: inherit; cursor: pointer;
+  letter-spacing: .2em; text-transform: uppercase;
+  transition: background .2s;
+}
+.pending-spin .ps-go:hover{ background: var(--terra); }
+.pending-spin .ps-x{
+  background: none; border: 0; padding: 4px 8px; cursor: pointer;
+  font-size: 18px; color: var(--ink-soft); line-height: 1;
+}
+.pending-spin .ps-x:hover{ color: var(--terra); }
+
+/* Spin buttons */
+.spin-btn{
+  background: var(--terra); color: var(--paper);
+  border: 0; padding: 6px 14px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .2em; text-transform: uppercase;
+  cursor: pointer; margin-left: 4px;
+  transition: background .2s, transform .2s;
+}
+.spin-btn:hover{ background: var(--terra-dk); transform: translateY(-1px); }
+
+.masthead .spin-nav{
+  color: var(--terra) !important;
+  letter-spacing: .18em;
+  font-weight: 500;
+}
+.masthead .spin-nav:hover{ color: var(--terra-dk) !important; }
+
+/* Spin modal */
+.modal-spin{ max-width: 560px; }
+
+.spin-filter-lbl{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 12px 0 10px;
+}
+.cuisine-chips{
+  display: flex; flex-wrap: wrap; gap: 6px 8px;
+  margin-bottom: 18px;
+}
+.cuisine-chips .chip{
+  background: var(--paper-2); color: var(--ink-soft);
+  border: 1px solid var(--rule); padding: 6px 12px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  cursor: pointer; transition: all .15s;
+}
+.cuisine-chips .chip:hover{ border-color: var(--terra); color: var(--ink); }
+.cuisine-chips .chip.on{
+  background: var(--ink); color: var(--paper);
+  border-color: var(--ink);
+}
+
+.spin-geo{
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 0 22px; padding: 12px 14px;
+  border: 1px dashed var(--rule);
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .1em; color: var(--ink-soft);
+  cursor: pointer;
+}
+.spin-geo input{ margin: 0; accent-color: var(--terra); }
+.spin-geo em{ color: var(--rule); font-style: italic; }
+.spin-geo .spin-geo-status{ margin-left: auto; color: var(--terra); }
+
+.spin-go{
+  background: var(--terra) !important;
+}
+.spin-go:hover{ background: var(--terra-dk) !important; }
+
+/* Step 2: cycling */
+.spin-stage{
+  padding: 40px 0; text-align: center;
+}
+.spin-disc{
+  font-size: 64px; line-height: 1;
+  animation: spinDisc 1.4s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes spinDisc{
+  from { transform: rotate(0deg) scale(.8); }
+  60%  { transform: rotate(1080deg) scale(1.1); }
+  to   { transform: rotate(1260deg) scale(1); }
+}
+.spin-cycler{
+  font-family: var(--ff-disp);
+  font-size: 28px; line-height: 1.1;
+  color: var(--ink); margin-top: 18px;
+  min-height: 1.2em;
+  animation: cyclerBlink 1.4s linear forwards;
+}
+@keyframes cyclerBlink{
+  0%,100% { opacity: 1; } 50% { opacity: .5; }
+}
+.spin-result{
+  animation: popIn .26s ease;
+}
+.spin-place-name{
+  font-family: var(--ff-disp);
+  font-size: clamp(28px, 4.4vw, 42px);
+  line-height: 1.02; letter-spacing: -.01em;
+  margin: 4px 0 10px; color: var(--ink);
+}
+.spin-place-meta{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; color: var(--ink-soft);
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.spin-place-meta em{ color: var(--terra); font-style: italic; }
+.spin-friend-signal{
+  font-family: var(--ff-mono); font-size: 12px;
+  letter-spacing: .12em; color: var(--ink);
+  padding: 10px 14px; background: var(--paper-2);
+  border-left: 3px solid var(--terra);
+  margin-bottom: 10px;
+}
+.spin-friend-signal b{ color: var(--terra); font-weight: 500; }
+.spin-friend-signal .muted{ color: var(--ink-soft); font-style: italic; }
+.spin-why{
+  font-family: var(--ff-body); font-style: italic;
+  font-size: 14px; color: var(--ink-soft);
+  margin-bottom: 22px; line-height: 1.5;
+}
+.spin-why em{ color: var(--terra); font-style: normal; font-weight: 500;
+  background: rgba(181,74,46,.08); padding: 1px 6px; }
+.spin-why .muted{ color: var(--rule); }
+.spin-cta-row{
+  display: flex; gap: 12px; align-items: center;
+}
+.spin-cta-row .modal-cta{ flex: 1; margin-top: 0; }
+.modal-secondary{
+  background: none; border: 1px solid var(--rule);
+  color: var(--ink); padding: 14px 18px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .2em; text-transform: uppercase;
+  cursor: pointer; transition: border-color .2s, color .2s;
+}
+.modal-secondary:hover{ border-color: var(--terra); color: var(--terra); }
+
+/* Step 3: check-in methods */
+.spin-locked-name{
+  font-family: var(--ff-disp);
+  font-size: clamp(26px, 3.8vw, 36px);
+  line-height: 1.02; margin: 4px 0 16px;
+  color: var(--ink);
+}
+.checkin-methods{
+  display: flex; flex-direction: column; gap: 10px;
+  margin: 18px 0;
+}
+.checkin-method{
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  cursor: pointer; text-align: left;
+  font-family: var(--ff-body);
+  transition: border-color .2s, background .2s, transform .2s;
+}
+.checkin-method:hover{ border-color: var(--terra); background: var(--paper-2); transform: translateY(-1px); }
+.checkin-method.primary{ border-color: var(--ink); }
+.checkin-method.primary:hover{ border-color: var(--terra); }
+.checkin-method.dim{ opacity: .7; }
+.checkin-method .cm-ico{
+  font-size: 22px; flex-shrink: 0; width: 32px; text-align: center;
+}
+.checkin-method .cm-title{
+  font-family: var(--ff-disp); font-size: 18px;
+  color: var(--ink);
+}
+.checkin-method .cm-sub{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 2px;
+}
+
+.bill-preview{
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--terra);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+}
+.bill-preview img{
+  max-width: 100%; max-height: 200px;
+  object-fit: contain;
+  border: 1px solid var(--rule);
+}
+.bill-preview .verified{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--terra); font-weight: 500;
+}
+
+/* Step 4: super-rating */
+.super-badge{
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .22em; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.super-badge span{ color: var(--terra); font-size: 14px; }
+.super-badge em{
+  font-style: normal; color: var(--rule);
+  letter-spacing: .12em; font-size: 10px; margin-left: 6px;
+  text-transform: none;
+}
+.spin-rated-name{
+  font-family: var(--ff-disp);
+  font-size: clamp(26px, 3.8vw, 36px);
+  line-height: 1.02; margin: 0 0 8px;
+}
+.super-overall{ display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+.super-overall > span{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 0;
+}
+.super-rate{ --star-sz: 26px; letter-spacing: 5px; }
+.super-rate.mini{ --star-sz: 16px; letter-spacing: 3px; }
+
+.dish-block{
+  border-top: 1px dashed var(--rule);
+  padding-top: 16px; margin-bottom: 18px;
+}
+.dish-block-lbl{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--terra); margin-bottom: 12px;
+}
+.dish-rows{ display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.dish-row{
+  display: flex; align-items: center; gap: 12px;
+}
+.dish-row .dish-name{
+  flex: 1; min-width: 0;
+  background: transparent;
+  border: 0; border-bottom: 1px solid var(--rule);
+  padding: 6px 0; outline: none;
+  font-family: var(--ff-body); font-size: 15px;
+  color: var(--ink);
+}
+.dish-row .dish-name:focus{ border-bottom-color: var(--terra); }
+.dish-row .rate{ flex-shrink: 0; }
+.dish-row .dish-remove{
+  background: none; border: 0; padding: 4px 8px;
+  cursor: pointer; color: var(--ink-soft); font-size: 16px;
+}
+.dish-row .dish-remove:hover{ color: var(--terra); }
+
+/* Super badge on log cards */
+.log-card .super-badge{
+  font-size: 9px; letter-spacing: .16em;
+  padding: 3px 8px; margin: 0; gap: 4px;
+}
+.log-card .super-badge span{ font-size: 11px; }
+.log-card .super-badge em{ display: none; }
+.log-card .dish-list{
+  display: flex; flex-wrap: wrap; gap: 4px 6px;
+  margin: 8px 0 2px;
+}
+.log-card .dish-pill{
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: 3px 8px;
+}
+.log-card .dish-pill b{ color: var(--ink); font-weight: 500; }
+
+@media (max-width: 640px){
+  .spin-cta-row{ flex-direction: column; align-items: stretch; }
+  .spin-cta-row .modal-secondary{ width: 100%; }
+  .modal-spin{ padding: 28px 20px 22px; }
+  .pending-spin{ flex-wrap: wrap; padding: 10px 16px; }
+  .pending-spin .ps-text{ flex-basis: 100%; }
+  .super-overall{ flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
 /* ============ CLOUD / OFFLINE TOGGLE ============ */
 .cloud-only, .local-only{ display: none; }
 html.cloud-mode .cloud-only{ display: block; }

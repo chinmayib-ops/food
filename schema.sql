@@ -143,6 +143,35 @@ create policy "dish photos owner delete" on storage.objects
   using (bucket_id = 'dish-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ============================================================
+-- SPINS — "Spin the Dosa" sessions (locked picks + check-ins)
+-- ============================================================
+create table if not exists public.spins (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  place_id     text not null,
+  cuisine      text,
+  spun_at      timestamptz not null default now(),
+  locked_at    timestamptz,
+  checked_in_at timestamptz,
+  verified_by  text check (verified_by in ('photo','gps','manual')),
+  bill_url     text,
+  super_rated  boolean not null default false
+);
+create index if not exists spins_user_idx on public.spins(user_id, spun_at desc);
+
+alter table public.spins enable row level security;
+drop policy if exists spins_all on public.spins;
+create policy spins_all on public.spins for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- bill photos go in the same dish-photos bucket under <uid>/bills/...
+-- (already covered by existing storage policies on the bucket)
+
+-- entries: optional dish-level breakdown for super-rated reviews
+alter table public.entries add column if not exists super_rated boolean not null default false;
+alter table public.entries add column if not exists dishes jsonb;
+
+-- ============================================================
 -- REALTIME — broadcast entry changes so friends' feeds live-update
 -- ============================================================
 alter publication supabase_realtime add table public.entries;

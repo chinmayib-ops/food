@@ -137,6 +137,27 @@ const Friends = {
   count(){ return this.all().length; }
 };
 
+const KEY_SPINS = 'be:spins';
+const Spins = {
+  all(){ return loadJSON(KEY_SPINS, []); },
+  add(s){ const l=this.all(); l.push(s); saveJSON(KEY_SPINS,l); emit('data:change'); return s; },
+  update(id, patch){
+    const l=this.all(); const i=l.findIndex(x=>x.id===id);
+    if(i<0) return null;
+    l[i] = { ...l[i], ...patch };
+    saveJSON(KEY_SPINS, l); emit('data:change');
+    return l[i];
+  },
+  byId(id){ return this.all().find(s=>s.id===id) || null; },
+  pending(){
+    // a spin is "pending" if locked but not yet super-rated
+    return this.all().find(s => s.lockedAt && !s.superRatedAt) || null;
+  },
+  remove(id){ saveJSON(KEY_SPINS, this.all().filter(s=>s.id!==id)); emit('data:change'); },
+  count(){ return this.all().length; },
+  countCompleted(){ return this.all().filter(s=>s.superRatedAt).length; }
+};
+
 function emit(n,d){ document.dispatchEvent(new CustomEvent(n,{detail:d})); }
 
 /* ---------- one-time migration: v1 ratings → v2 entries ---------- */
@@ -457,7 +478,8 @@ function placeCard(p){
     </div>
     <div class="name">${esc(p.name)}</div>
     <div class="hood">${esc(p.hood)}${p.cuisine?` · <span class="cz">${esc(p.cuisine)}</span>`:''}</div>
-    <div class="row">${aggLine}</div>
+    <div class="row">${aggLine}${e&&e.superRated?'<span class="super-badge" title="Adventurous Visit — spun &amp; verified">✦ Adventurous</span>':''}</div>
+    ${e&&e.dishes&&e.dishes.length?`<div class="dish-list">${e.dishes.map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
     ${e&&e.note?`<div class="card-note">“${esc(e.note)}”</div>`:''}
     ${e&&e.visitedAt?`<div class="card-date">Visited ${esc(new Date(e.visitedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</div>`:''}
     <div class="your-rate-row">
@@ -863,6 +885,363 @@ function initProfileMenu(){
     Profile.clear(); Toast.show('Signed out · local cache kept on this device'); });
 }
 
+/* ============================================================
+   SPIN THE DOSA
+   Weighted random pick → lock → check-in → super-rating.
+   Works fully offline; super-ratings sync via the existing
+   Entries.set() path (which Sync already pushes).
+   ============================================================ */
+const SpinUI = (function(){
+  let cycleT=null, pickedId=null, currentSpinId=null, currentVerify=null, currentBillURL=null;
+  let geoCoords=null;
+
+  /* ---------- math: distance + weighted pick ---------- */
+  function haversineKm(lat1,lng1,lat2,lng2){
+    const R=6371, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  function userCuisineAffinity(){
+    // avg rating by cuisine over my entries
+    const e=Entries.all(); const sum={}, n={};
+    Object.entries(e).forEach(([pid,ent])=>{
+      const p=Places.byId(pid); if(!p||!p.cuisine||!ent.rating) return;
+      sum[p.cuisine]=(sum[p.cuisine]||0)+ent.rating; n[p.cuisine]=(n[p.cuisine]||0)+1;
+    });
+    const out={}; Object.keys(sum).forEach(c=>out[c]=sum[c]/n[c]);
+    return out;
+  }
+  function maxFriendRating(placeId){
+    let best=0;
+    Friends.all().forEach(f=>{
+      const v=(f.entries||{})[placeId]?.rating || (f.ratings||{})[placeId] || 0;
+      if(v>best) best=v;
+    });
+    return best;
+  }
+
+  function pickPlace(opts){
+    const cuisine = opts.cuisine || '';
+    const wishlist = new Set(Wishlist.all());
+    const aff = userCuisineAffinity();
+    const reg = Places.registry().filter(p => !cuisine || p.cuisine === cuisine);
+    const mine = Entries.all();
+    // exclude already super-rated
+    const candidates = reg.filter(p => !mine[p.id]?.superRated);
+    if(!candidates.length) return { place:null, reasons:[] };
+
+    const weighted = candidates.map(p => {
+      let w = 1, why = [];
+      // location boost
+      if(geoCoords && p.lat && p.lng){
+        const d = haversineKm(geoCoords.lat, geoCoords.lng, p.lat, p.lng);
+        if(d < 5){ w *= 1.6; why.push('only '+d.toFixed(1)+' km away'); }
+        else if(d < 15) w *= 1.0;
+        else w *= 0.5;
+      }
+      // cuisine affinity
+      if(p.cuisine && aff[p.cuisine] >= 4){ w *= 1.6; why.push('you love '+p.cuisine.toLowerCase()); }
+      else if(p.cuisine && aff[p.cuisine] >= 3) w *= 1.2;
+      // friend boost
+      const fr = maxFriendRating(p.id);
+      if(fr >= 4){ w *= 1.7; why.push('a friend rated it '+fr.toFixed(1)+'★'); }
+      else if(fr >= 3) w *= 1.2;
+      // wishlist
+      if(wishlist.has(p.id)){ w *= 2.0; why.push("it's on your wishlist"); }
+      // novelty: if rated already (non-super), downweight
+      if(mine[p.id]?.rating && !mine[p.id]?.superRated) w *= 0.4;
+      return { p, w, why };
+    });
+
+    const total = weighted.reduce((s,x)=>s+x.w, 0);
+    let r = Math.random() * total;
+    for(const item of weighted){
+      r -= item.w;
+      if(r <= 0) return { place:item.p, reasons:item.why };
+    }
+    const last = weighted[weighted.length-1];
+    return { place:last.p, reasons:last.why };
+  }
+
+  /* ---------- DOM helpers ---------- */
+  function $(sel){ return document.querySelector(sel); }
+  function showStep(n){
+    document.querySelectorAll('[data-spin-step]').forEach(el=>{ el.hidden = el.dataset.spinStep !== String(n); });
+  }
+
+  /* ---------- step 1: pre-spin ---------- */
+  function open(){
+    pickedId=null; currentSpinId=null; currentVerify=null; currentBillURL=null;
+    openModal('spin');
+    showStep(1);
+    renderCuisineChips();
+    // restore geo state
+    const gb=$('[data-spin-geo]'); if(gb) gb.checked = !!geoCoords;
+    const gs=$('[data-spin-geo-status]');
+    if(gs) gs.textContent = geoCoords ? '📍 Location ready' : '';
+  }
+  function renderCuisineChips(){
+    const wrap=$('[data-spin-cuisines]'); if(!wrap) return;
+    if(wrap.dataset.populated) return;
+    const chips = ['Any', ...CUISINES].map(c=>{
+      const val = c==='Any' ? '' : c;
+      const on  = c==='Any' ? ' on' : '';
+      return `<button type="button" class="chip${on}" data-cuisine="${esc(val)}">${esc(c)}</button>`;
+    }).join('');
+    wrap.innerHTML = chips;
+    wrap.dataset.populated = '1';
+    wrap.addEventListener('click', e=>{
+      const b = e.target.closest('.chip'); if(!b) return;
+      wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  }
+  function readCuisine(){
+    const on = document.querySelector('[data-spin-cuisines] .chip.on');
+    return on ? on.dataset.cuisine : '';
+  }
+  function maybeGetGeo(cb){
+    const gb=$('[data-spin-geo]');
+    if(!gb || !gb.checked){ geoCoords=null; cb(); return; }
+    if(geoCoords) return cb();
+    if(!('geolocation' in navigator)){ Toast.show('Location not available'); cb(); return; }
+    const gs=$('[data-spin-geo-status]'); if(gs) gs.textContent = '⟳ getting location…';
+    navigator.geolocation.getCurrentPosition(
+      p => { geoCoords = { lat:p.coords.latitude, lng:p.coords.longitude }; if(gs) gs.textContent='📍 Location ready'; cb(); },
+      ()=> { geoCoords=null; if(gs) gs.textContent='📍 Location denied'; cb(); },
+      { enableHighAccuracy:true, timeout:6000, maximumAge:120000 }
+    );
+  }
+
+  /* ---------- step 2: cycle + result ---------- */
+  function startSpin(){
+    const cuisine = readCuisine();
+    maybeGetGeo(()=>{
+      const { place, reasons } = pickPlace({ cuisine });
+      if(!place){ Toast.show('No places to spin — add some first!'); return; }
+      pickedId = place.id;
+      showStep(2);
+      runCycler(cuisine, ()=>showResult(place, reasons));
+    });
+  }
+  function runCycler(cuisine, done){
+    const cycler = $('[data-spin-cycler]'); const stage=$('[data-spin-stage]');
+    const result = $('[data-spin-result]');
+    if(stage) stage.hidden = false; if(result) result.hidden = true;
+    const reg = Places.registry().filter(p => !cuisine || p.cuisine===cuisine);
+    let i=0, delay=60, total=0;
+    function tick(){
+      const p = reg[Math.floor(Math.random()*reg.length)];
+      if(cycler) cycler.textContent = p ? p.name : '—';
+      total += delay;
+      delay = Math.min(260, delay + 14); // decelerate
+      if(total < 1400){ cycleT = setTimeout(tick, delay); }
+      else { clearTimeout(cycleT); cycleT=null; done(); }
+    }
+    tick();
+  }
+  function showResult(place, reasons){
+    const stage=$('[data-spin-stage]'), result=$('[data-spin-result]');
+    if(stage) stage.hidden=true; if(result) result.hidden=false;
+    $('[data-spin-place-name]').textContent = place.name;
+    $('[data-spin-place-meta]').innerHTML =
+      esc(place.hood) + ' · ' + esc(place.cuisine||'—') +
+      (place.dish ? ' · <em>'+esc(place.dish)+'</em>' : '') +
+      (geoCoords&&place.lat&&place.lng ? ' · ' + haversineKm(geoCoords.lat,geoCoords.lng,place.lat,place.lng).toFixed(1)+' km' : '');
+    const ag = aggregate(place.id);
+    $('[data-spin-friend-signal]').innerHTML = ag.count
+      ? `<b>★ ${fmt(ag.avg)}</b> · ${ag.count} ${ag.count===1?'rating':'ratings'} from you + friends`
+      : '<span class="muted">No ratings yet · be the first</span>';
+    $('[data-spin-why]').innerHTML = reasons.length
+      ? 'Why this? ' + reasons.slice(0,2).map(r=>`<em>${esc(r)}</em>`).join(' · ')
+      : '<span class="muted">A clean random pick.</span>';
+  }
+  function lockIn(){
+    const place = Places.byId(pickedId); if(!place) return;
+    const spin = Spins.add({
+      id: 'sp_' + Math.random().toString(36).slice(2,10),
+      placeId: place.id, cuisine: readCuisine(),
+      spunAt: new Date().toISOString(),
+      lockedAt: new Date().toISOString()
+    });
+    currentSpinId = spin.id;
+    showStep(3);
+    paintCheckin(place);
+    Toast.show("Locked in · <em>" + esc(place.name) + "</em>");
+  }
+
+  /* ---------- step 3: check-in ---------- */
+  function paintCheckin(place){
+    $('[data-spin-locked-name]').textContent = place.name + ' · ' + place.hood;
+    const sub = $('[data-spin-gps-sub]');
+    if(sub) sub.textContent = place.lat ? 'Verify by GPS (within ~250 m)' : 'No coords — GPS unavailable for this spot';
+    $('[data-spin-bill-preview]').hidden = true;
+    $('[data-spin-bill-preview]').innerHTML = '';
+    currentVerify = null; currentBillURL = null;
+  }
+  async function handleBill(file){
+    if(!file) return;
+    const dataURL = await new Promise((res,rej)=>{
+      const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file);
+    });
+    const compact = await compressImageDataURL(dataURL, 1200, 0.78);
+    currentBillURL = compact;
+    currentVerify = 'photo';
+    const prev = $('[data-spin-bill-preview]');
+    prev.hidden = false;
+    prev.innerHTML = `<img alt="Bill" src="${compact}"/><span class="verified">✓ Photo attached · verified</span>
+      <button type="button" class="link-btn" data-spin-go-rate>Continue to super-rating →</button>`;
+  }
+  function checkGPS(){
+    const spin = Spins.byId(currentSpinId); if(!spin) return;
+    const place = Places.byId(spin.placeId);
+    if(!place || !place.lat || !place.lng){ Toast.show('No coords for this place'); return; }
+    if(!('geolocation' in navigator)){ Toast.show('Location not available'); return; }
+    Toast.show('Checking your location…');
+    navigator.geolocation.getCurrentPosition(p=>{
+      const d = haversineKm(p.coords.latitude, p.coords.longitude, place.lat, place.lng);
+      if(d <= 0.25){
+        currentVerify='gps';
+        Toast.show('✓ You\'re at <em>'+esc(place.name)+'</em> · verified');
+        goToSuperRate();
+      } else {
+        Toast.show("Hmm, ~"+d.toFixed(1)+" km away · keep going or skip verify");
+      }
+    }, ()=> Toast.show('Could not read location'), { enableHighAccuracy:true, timeout:7000 });
+  }
+  function checkManual(){
+    currentVerify = 'manual';
+    goToSuperRate();
+  }
+
+  /* ---------- step 4: super-rating ---------- */
+  function goToSuperRate(){
+    const spin = Spins.byId(currentSpinId); if(!spin) return;
+    const place = Places.byId(spin.placeId);
+    Spins.update(spin.id, { checkedInAt: new Date().toISOString(), verifiedBy: currentVerify, billUrl: currentBillURL });
+    showStep(4);
+    paintSuperForm(place);
+  }
+  function paintSuperForm(place){
+    const wrap = $('[data-spin-rated-name]'); if(wrap) wrap.textContent = place.name + ' · ' + place.hood;
+    const form = $('[data-super-form]'); if(form){ form.placeId.value = place.id; form.note.value = ''; }
+    // dish rows
+    const dr = $('[data-dish-rows]');
+    if(dr){
+      dr.innerHTML = dishRow(place.dish || '') + dishRow('');
+      dr.querySelectorAll('.rate').forEach(initRating);
+    }
+    // overall rate
+    const ov = document.querySelector('.super-rate[data-super="overall"]');
+    if(ov){ ov.dataset.value='0'; const fg=ov.querySelector('.rate-fg'); if(fg) fg.style.width='0%'; ov.dataset.inited=''; initRating(ov); }
+    // hide verify chip if manual
+    const vb = document.querySelector('[data-spin-verified-by]');
+    if(vb) vb.textContent = currentVerify==='photo' ? 'Verified by bill photo'
+      : currentVerify==='gps' ? 'Verified by location'
+      : 'Unverified · normal review';
+  }
+  function dishRow(name){
+    return `<div class="dish-row">
+      <input type="text" class="dish-name" placeholder="What you ate" maxlength="40" value="${esc(name)}" />
+      <div class="rate mini super-rate" data-max="5" data-value="0" tabindex="0" role="slider">
+        <span class="rate-bg">★★★★★</span>
+        <span class="rate-fg" style="width:0%">★★★★★</span>
+        <span class="rate-hov" style="width:0%">★★★★★</span>
+      </div>
+      <button type="button" class="dish-remove" aria-label="Remove">×</button>
+    </div>`;
+  }
+  function addDishRow(){
+    const dr = $('[data-dish-rows]'); if(!dr) return;
+    if(dr.querySelectorAll('.dish-row').length >= 5){ Toast.show('Max 5 dishes'); return; }
+    dr.insertAdjacentHTML('beforeend', dishRow(''));
+    dr.querySelectorAll('.rate').forEach(initRating);
+  }
+  function removeDishRow(btn){
+    const row = btn.closest('.dish-row'); if(row) row.remove();
+  }
+  function saveSuper(form){
+    const placeId = form.placeId.value;
+    const overall = parseFloat(document.querySelector('.super-rate[data-super="overall"]').dataset.value||'0')||0;
+    if(!overall){ Toast.show('Set an overall rating first'); return; }
+    const dishes = [];
+    form.querySelectorAll('.dish-row').forEach(r=>{
+      const name=r.querySelector('.dish-name').value.trim();
+      const rate=parseFloat(r.querySelector('.rate').dataset.value||'0')||0;
+      if(name && rate) dishes.push({ name, rating: rate });
+    });
+    const note = form.note.value.trim();
+    const isSuper = currentVerify === 'photo' || currentVerify === 'gps';
+    const patch = {
+      rating: overall, note, dishes, superRated: isSuper,
+      spinId: currentSpinId, visitedAt: new Date().toISOString().slice(0,10)
+    };
+    Entries.set(placeId, patch);
+    Spins.update(currentSpinId, { superRatedAt: new Date().toISOString() });
+    closeModal(document.querySelector('[data-modal="spin"]'));
+    Toast.show(isSuper
+      ? '✦ <em>Adventurous Visit</em> saved · the dosa was kind'
+      : 'Review saved · spin in for the badge next time');
+  }
+
+  /* ---------- pending banner ---------- */
+  function renderPendingBanner(){
+    const banner = document.querySelector('[data-pending-spin]');
+    if(!banner) return;
+    const pend = Spins.pending();
+    if(!pend){ banner.hidden = true; return; }
+    const p = Places.byId(pend.placeId);
+    if(!p){ banner.hidden = true; return; }
+    banner.hidden = false;
+    banner.innerHTML = `<span class="ps-ico">🫓</span>
+      <div class="ps-text">Your spin is live: <b>${esc(p.name)}</b> · ${esc(p.hood)} —
+        ${ pend.checkedInAt ? '<em>finish your super-rating</em>' : '<em>check in when you\'re there</em>' }</div>
+      <button type="button" class="ps-go" data-resume-spin>Resume →</button>
+      <button type="button" class="ps-x" data-cancel-spin aria-label="Cancel spin">×</button>`;
+  }
+  function resume(){
+    const pend = Spins.pending(); if(!pend){ open(); return; }
+    currentSpinId = pend.id;
+    currentVerify = pend.verifiedBy || null;
+    currentBillURL = pend.billUrl || null;
+    pickedId = pend.placeId;
+    openModal('spin');
+    const place = Places.byId(pend.placeId);
+    if(!pend.checkedInAt){ showStep(3); paintCheckin(place); }
+    else { showStep(4); paintSuperForm(place); }
+  }
+  function cancel(){
+    const pend = Spins.pending(); if(!pend) return;
+    Spins.remove(pend.id);
+    Toast.show('Spin cancelled');
+  }
+
+  /* ---------- wire up DOM ---------- */
+  function init(){
+    document.addEventListener('click', e=>{
+      const t = e.target;
+      if(t.closest('[data-spin-open]')){ e.preventDefault(); open(); return; }
+      if(t.closest('[data-resume-spin]')){ e.preventDefault(); resume(); return; }
+      if(t.closest('[data-cancel-spin]')){ e.preventDefault(); cancel(); return; }
+      if(t.closest('[data-spin-start]')){ e.preventDefault(); startSpin(); return; }
+      if(t.closest('[data-spin-again]')){ e.preventDefault(); startSpin(); return; }
+      if(t.closest('[data-spin-lock]')){ e.preventDefault(); lockIn(); return; }
+      if(t.closest('[data-spin-gps]')){ e.preventDefault(); checkGPS(); return; }
+      if(t.closest('[data-spin-manual]')){ e.preventDefault(); checkManual(); return; }
+      if(t.closest('[data-spin-go-rate]')){ e.preventDefault(); goToSuperRate(); return; }
+      if(t.closest('[data-add-dish]')){ e.preventDefault(); addDishRow(); return; }
+      if(t.matches('.dish-remove')){ e.preventDefault(); removeDishRow(t); return; }
+    });
+    const bill = document.querySelector('[data-spin-bill]');
+    if(bill) bill.addEventListener('change', e=>handleBill(e.target.files[0]));
+    const form = document.querySelector('[data-super-form]');
+    if(form) form.addEventListener('submit', e=>{ e.preventDefault(); saveSuper(form); });
+  }
+
+  return { init, renderPendingBanner };
+})();
+
 /* ---------- toolbar ---------- */
 function syncToolbarUI(){
   document.querySelectorAll('[data-logbook-filters] [data-tab]').forEach(a=>a.classList.toggle('on',a.dataset.tab===state.tab));
@@ -932,12 +1311,13 @@ function initActions(){
 }
 
 /* ---------- boot ---------- */
-function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); }
+function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); }
 
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.rate-dock .rate').forEach(r=>initRating(r));
   initModals(); initProfileMenu(); initToolbar(); initActions();
   syncToolbarUI(); renderAll();
+  SpinUI.init();
   Sync.boot();
   if(location.hash.startsWith('#friend=')){
     const code=location.hash.slice('#friend='.length);
@@ -946,4 +1326,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 });
 document.addEventListener('profile:change',renderAll);
-document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); Sync.schedulePush(); });
+document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });
