@@ -902,14 +902,15 @@ const SpinUI = (function(){
     const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
     return 2*R*Math.asin(Math.sqrt(a));
   }
-  function userCuisineAffinity(){
-    // avg rating by cuisine over my entries
+  function userCuisineStats(){
+    // avg AND count per cuisine, so we can gate on confidence
     const e=Entries.all(); const sum={}, n={};
     Object.entries(e).forEach(([pid,ent])=>{
       const p=Places.byId(pid); if(!p||!p.cuisine||!ent.rating) return;
       sum[p.cuisine]=(sum[p.cuisine]||0)+ent.rating; n[p.cuisine]=(n[p.cuisine]||0)+1;
     });
-    const out={}; Object.keys(sum).forEach(c=>out[c]=sum[c]/n[c]);
+    const out={};
+    Object.keys(sum).forEach(c=>out[c]={ avg:sum[c]/n[c], n:n[c] });
     return out;
   }
   function maxFriendRating(placeId){
@@ -920,37 +921,65 @@ const SpinUI = (function(){
     });
     return best;
   }
+  function candidateCount(cuisine){
+    const mine = Entries.all();
+    return Places.registry()
+      .filter(p => !cuisine || p.cuisine === cuisine)
+      .filter(p => !mine[p.id]?.superRated)
+      .length;
+  }
 
   function pickPlace(opts){
     const cuisine = opts.cuisine || '';
     const wishlist = new Set(Wishlist.all());
-    const aff = userCuisineAffinity();
+    const stats = userCuisineStats();
     const reg = Places.registry().filter(p => !cuisine || p.cuisine === cuisine);
     const mine = Entries.all();
-    // exclude already super-rated
     const candidates = reg.filter(p => !mine[p.id]?.superRated);
-    if(!candidates.length) return { place:null, reasons:[] };
+    if(!candidates.length) return { place:null, reasons:[], note:'empty' };
 
+    // -------- personalization confidence gate --------
+    // With too little data, weighted picks just bias toward whatever single
+    // signal exists (e.g. one wishlisted bakery). Keep it uniform until the
+    // signals are real.
+    const ratedCount    = Object.values(mine).filter(x=>x.rating).length;
+    const wishlistCount = wishlist.size;
+    const friendsWithData = Friends.all().filter(f =>
+      Object.keys(f.entries || f.ratings || {}).length).length;
+
+    const enoughSignal = ratedCount >= 3 || friendsWithData >= 1 || wishlistCount >= 3;
+    const smallSet     = candidates.length <= 3;
+
+    if (smallSet || !enoughSignal){
+      // Pure uniform — no fake personalization on thin data
+      const place = candidates[Math.floor(Math.random()*candidates.length)];
+      return {
+        place, reasons:[],
+        note: smallSet ? 'small-set' : 'cold-start',
+        candidateCount: candidates.length
+      };
+    }
+
+    // -------- weighted personalization (data-rich path) --------
     const weighted = candidates.map(p => {
       let w = 1, why = [];
-      // location boost
       if(geoCoords && p.lat && p.lng){
         const d = haversineKm(geoCoords.lat, geoCoords.lng, p.lat, p.lng);
-        if(d < 5){ w *= 1.6; why.push('only '+d.toFixed(1)+' km away'); }
-        else if(d < 15) w *= 1.0;
-        else w *= 0.5;
+        if(d < 5){ w *= 1.5; why.push('only '+d.toFixed(1)+' km away'); }
+        else if(d > 15) w *= 0.6;
       }
-      // cuisine affinity
-      if(p.cuisine && aff[p.cuisine] >= 4){ w *= 1.6; why.push('you love '+p.cuisine.toLowerCase()); }
-      else if(p.cuisine && aff[p.cuisine] >= 3) w *= 1.2;
-      // friend boost
+      // cuisine affinity — only with ≥3 ratings in this cuisine
+      const cs = p.cuisine && stats[p.cuisine];
+      if(cs && cs.n >= 3 && cs.avg >= 4){ w *= 1.5; why.push('you usually love '+p.cuisine.toLowerCase()); }
+      else if(cs && cs.n >= 3 && cs.avg >= 3) w *= 1.15;
+      // friend boost — only kicks in if a friend actually rated this place
       const fr = maxFriendRating(p.id);
-      if(fr >= 4){ w *= 1.7; why.push('a friend rated it '+fr.toFixed(1)+'★'); }
-      else if(fr >= 3) w *= 1.2;
-      // wishlist
-      if(wishlist.has(p.id)){ w *= 2.0; why.push("it's on your wishlist"); }
-      // novelty: if rated already (non-super), downweight
-      if(mine[p.id]?.rating && !mine[p.id]?.superRated) w *= 0.4;
+      if(fr >= 4){ w *= 1.6; why.push('a friend rated it '+fr.toFixed(1)+'★'); }
+      else if(fr >= 3) w *= 1.15;
+      // wishlist — modest (was 2.0×, now 1.4×)
+      if(wishlist.has(p.id)){ w *= 1.4; why.push('on your wishlist'); }
+      // novelty: downweight things you've already rated normally
+      if(mine[p.id]?.rating && !mine[p.id]?.superRated) w *= 0.45;
       return { p, w, why };
     });
 
@@ -958,10 +987,10 @@ const SpinUI = (function(){
     let r = Math.random() * total;
     for(const item of weighted){
       r -= item.w;
-      if(r <= 0) return { place:item.p, reasons:item.why };
+      if(r <= 0) return { place:item.p, reasons:item.why, note:'personalized', candidateCount: candidates.length };
     }
     const last = weighted[weighted.length-1];
-    return { place:last.p, reasons:last.why };
+    return { place:last.p, reasons:last.why, note:'personalized', candidateCount: candidates.length };
   }
 
   /* ---------- DOM helpers ---------- */
@@ -976,6 +1005,7 @@ const SpinUI = (function(){
     openModal('spin');
     showStep(1);
     renderCuisineChips();
+    renderSpinPool();
     // restore geo state
     const gb=$('[data-spin-geo]'); if(gb) gb.checked = !!geoCoords;
     const gs=$('[data-spin-geo-status]');
@@ -995,7 +1025,24 @@ const SpinUI = (function(){
       const b = e.target.closest('.chip'); if(!b) return;
       wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
       b.classList.add('on');
+      renderSpinPool();
     });
+  }
+
+  function renderSpinPool(){
+    const el = document.querySelector('[data-spin-pool]');
+    const btn = document.querySelector('[data-spin-start]');
+    if(!el) return;
+    const n = candidateCount(readCuisine());
+    if(btn) btn.disabled = (n === 0);
+    if(n === 0)
+      el.innerHTML = `<span class="empty">No places match this cuisine · <button class="link-btn" type="button" data-spin-add>add one →</button></span>`;
+    else if(n === 1)
+      el.innerHTML = `<span class="thin">Only 1 place in the pool · spin will always land there. <button class="link-btn" type="button" data-spin-add>Add another →</button></span>`;
+    else if(n <= 3)
+      el.innerHTML = `<span class="thin">${n} places in the pool · variety mode (no personalization) · <button class="link-btn" type="button" data-spin-add>add more →</button></span>`;
+    else
+      el.innerHTML = `<span>${n} places in the spin pool</span>`;
   }
   function readCuisine(){
     const on = document.querySelector('[data-spin-cuisines] .chip.on');
@@ -1018,11 +1065,11 @@ const SpinUI = (function(){
   function startSpin(){
     const cuisine = readCuisine();
     maybeGetGeo(()=>{
-      const { place, reasons } = pickPlace({ cuisine });
-      if(!place){ Toast.show('No places to spin — add some first!'); return; }
-      pickedId = place.id;
+      const result = pickPlace({ cuisine });
+      if(!result.place){ Toast.show('No places to spin — add some first!'); return; }
+      pickedId = result.place.id;
       showStep(2);
-      runCycler(cuisine, ()=>showResult(place, reasons));
+      runCycler(cuisine, ()=>showResult(result.place, result.reasons, result.note, result.candidateCount));
     });
   }
   function runCycler(cuisine, done){
@@ -1041,7 +1088,7 @@ const SpinUI = (function(){
     }
     tick();
   }
-  function showResult(place, reasons){
+  function showResult(place, reasons, note, candCount){
     const stage=$('[data-spin-stage]'), result=$('[data-spin-result]');
     if(stage) stage.hidden=true; if(result) result.hidden=false;
     $('[data-spin-place-name]').textContent = place.name;
@@ -1053,9 +1100,19 @@ const SpinUI = (function(){
     $('[data-spin-friend-signal]').innerHTML = ag.count
       ? `<b>★ ${fmt(ag.avg)}</b> · ${ag.count} ${ag.count===1?'rating':'ratings'} from you + friends`
       : '<span class="muted">No ratings yet · be the first</span>';
-    $('[data-spin-why]').innerHTML = reasons.length
-      ? 'Why this? ' + reasons.slice(0,2).map(r=>`<em>${esc(r)}</em>`).join(' · ')
-      : '<span class="muted">A clean random pick.</span>';
+    // honest copy keyed to data confidence
+    const whyEl = $('[data-spin-why]');
+    if (note === 'personalized' && reasons.length){
+      whyEl.innerHTML = 'Why this? ' + reasons.slice(0,2).map(r=>`<em>${esc(r)}</em>`).join(' · ');
+    } else if (note === 'small-set'){
+      whyEl.innerHTML = (candCount===1)
+        ? `<span class="muted">Only place in the pool — <button type="button" class="link-btn" data-spin-add>add another →</button></span>`
+        : `<span class="muted">Variety mode · only ${candCount} places match this cuisine.</span>`;
+    } else if (note === 'cold-start'){
+      whyEl.innerHTML = '<span class="muted">A fresh random pick — rate a few places and the spin starts learning your taste.</span>';
+    } else {
+      whyEl.innerHTML = '';
+    }
   }
   function lockIn(){
     const place = Places.byId(pickedId); if(!place) return;
@@ -1230,6 +1287,12 @@ const SpinUI = (function(){
       if(t.closest('[data-spin-gps]')){ e.preventDefault(); checkGPS(); return; }
       if(t.closest('[data-spin-manual]')){ e.preventDefault(); checkManual(); return; }
       if(t.closest('[data-spin-go-rate]')){ e.preventDefault(); goToSuperRate(); return; }
+      if(t.closest('[data-spin-add]')){
+        e.preventDefault();
+        closeModal(document.querySelector('[data-modal="spin"]'));
+        openModal('addplace');
+        return;
+      }
       if(t.closest('[data-add-dish]')){ e.preventDefault(); addDishRow(); return; }
       if(t.matches('.dish-remove')){ e.preventDefault(); removeDishRow(t); return; }
     });

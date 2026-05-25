@@ -1545,6 +1545,25 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   border-color: var(--ink);
 }
 
+.spin-pool{
+  margin: -8px 0 14px;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.spin-pool .thin{ color: var(--terra); }
+.spin-pool .empty{ color: var(--terra-dk); }
+.spin-pool .link-btn{
+  font-size: 10px; letter-spacing: .14em;
+  margin-left: 4px;
+}
+.spin-go:disabled{
+  background: var(--rule) !important;
+  color: var(--ink-soft) !important;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .spin-geo{
   display: flex; align-items: center; gap: 10px;
   margin: 4px 0 22px; padding: 12px 14px;
