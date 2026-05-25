@@ -80,6 +80,34 @@ That's it.
   can write them; they're publicly readable by URL (needed to show them).
 - Share-codes still work in cloud mode too, as a no-account fallback.
 
+## Importing the Bengaluru-wide catalogue (OpenStreetMap)
+
+By default the app ships with 12 seed places. To expand the spin pool to
+the ~6,700 restaurants/cafés/bakeries OSM has tagged inside Bengaluru:
+
+1. Run the importer locally (Node 18+ required):
+   ```
+   node scripts/import-osm.js
+   ```
+   It hits the public Overpass API, maps OSM tags into our `places`
+   shape, and writes `scripts/bengaluru-places.sql`. The repo also
+   ships with a pre-generated SQL file you can use as-is.
+
+2. **Supabase → SQL Editor → New query** → paste the contents of
+   `scripts/bengaluru-places.sql` → **Run**. ~10–30s on the free tier.
+
+3. Reload the app. `Sync.bootPlaces()` fetches the catalogue (no auth
+   required — the policy in step 2 makes `places` publicly readable),
+   merges into local storage, and the spin pool jumps from 12 to
+   thousands. The "All places" grid caps render at 120 with a "Show
+   all →" — use search/filters to narrow.
+
+Re-run the importer every few months to pull fresh OSM data; the SQL is
+idempotent (`on conflict (id) do nothing`).
+
+Attribution is required by the ODbL — there's a small "© OpenStreetMap
+contributors" footer line included.
+
 ## Troubleshooting
 
 - *Still says “● offline”* → `config.js` keys missing/typo, or the

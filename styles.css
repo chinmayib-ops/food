@@ -1792,6 +1792,33 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   .super-overall{ flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 
+/* ============ OSM ATTRIBUTION ============ */
+.attribution{
+  text-align: center;
+  padding: 0 24px 40px;
+  font-family: var(--ff-mono);
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft);
+  position: relative; z-index: 2;
+}
+.attribution a{ color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.attribution a:hover{ color: var(--terra); }
+
+/* ============ GRID-MORE FOOTER ============ */
+.grid-more{
+  grid-column: 1 / -1;
+  padding: 28px 0 8px;
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline;
+  border-top: 1px dashed var(--rule);
+  margin-top: 12px;
+  font-family: var(--ff-mono);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.grid-more b{ color: var(--ink); font-weight: 500; }
+.grid-more .muted{ color: var(--rule); text-transform: none; letter-spacing: .04em; font-style: italic; font-family: var(--ff-body); }
+.grid-more .link-btn{ font-size: 11px; letter-spacing: .18em; }
+
 /* ============ CLOUD / OFFLINE TOGGLE ============ */
 .cloud-only, .local-only{ display: none; }
 html.cloud-mode .cloud-only{ display: block; }

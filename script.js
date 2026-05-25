@@ -299,9 +299,35 @@ const Sync = (function(){
     clearTimeout(pushT); setTimeout(pull,600);
   }
 
+  /* Pull the public places catalogue — runs without auth, so the
+     spin pool is large even before sign-in. Merges by id; never
+     touches seed places. */
+  async function pullPublicPlaces(){
+    if(!cloud()) return;
+    try{
+      const cp = await C.DB.listPlaces();
+      if(!cp || !cp.length) return;
+      const lc = Places.custom();
+      const seen = new Set(lc.map(p=>p.id));
+      let added = 0;
+      cp.forEach(p=>{
+        if(!seen.has(p.id) && !window.__SEED_IDS.has(p.id)){
+          lc.push({ id:p.id, name:p.name, hood:p.hood, cuisine:p.cuisine, dish:p.dish, lat:p.lat, lng:p.lng, custom:true });
+          added++;
+        }
+      });
+      if(added){
+        localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
+        document.dispatchEvent(new CustomEvent('data:change'));
+      }
+    }catch(e){ /* silent — offline-first */ }
+  }
+
   async function boot(){
     if(!cloud()){ setStatus('offline'); return; }
     setStatus('offline');
+    // public catalogue first (no auth needed)
+    pullPublicPlaces();
     C.Auth.onChange(async (evt,sess)=>{
       if(sess&&sess.user){
         const ok=await ensureProfile(sess.user);
@@ -430,7 +456,7 @@ function initLike(btn){
 /* ============================================================
    RENDER: logbook (grid / map) with toolbar
    ============================================================ */
-let state = { tab:'all', view:'grid', q:'', cuisine:'', minRating:0, sort:'default' };
+let state = { tab:'all', view:'grid', q:'', cuisine:'', minRating:0, sort:'default', showAll:false };
 let mapObj=null, mapLayer=null;
 
 function visiblePlaces(){
@@ -524,7 +550,17 @@ function renderLogbook(){
     empty.innerHTML=msg;
   } else {
     empty.hidden=true; grid.hidden=false;
-    grid.innerHTML=list.map(placeCard).join('');
+    // Render cap: with ~7k places in the catalogue, painting them all
+    // freezes the browser. Show the first N; surface a "more" footer.
+    const CAP = state.showAll ? Infinity : 120;
+    const visible = list.slice(0, CAP);
+    let html = visible.map(placeCard).join('');
+    if (list.length > visible.length){
+      html += `<div class="grid-more"><span>Showing <b>${visible.length}</b> of <b>${list.length.toLocaleString()}</b> places</span>
+        <button type="button" class="link-btn" data-show-all>Show all →</button>
+        <span class="muted">or use the <b>search</b> and <b>filters</b> above to narrow</span></div>`;
+    }
+    grid.innerHTML = html;
     grid.querySelectorAll('.rate').forEach(r=>initRating(r));
     grid.querySelectorAll('[data-like]').forEach(initLike);
   }
@@ -1312,11 +1348,11 @@ function syncToolbarUI(){
 }
 function initToolbar(){
   const s=document.querySelector('[data-search]');
-  s && s.addEventListener('input',()=>{ state.q=s.value.trim(); renderLogbook(); });
+  s && s.addEventListener('input',()=>{ state.q=s.value.trim(); state.showAll=false; renderLogbook(); });
   const fc=document.querySelector('[data-filter-cuisine]');
-  fc && fc.addEventListener('change',()=>{ state.cuisine=fc.value; renderLogbook(); });
+  fc && fc.addEventListener('change',()=>{ state.cuisine=fc.value; state.showAll=false; renderLogbook(); });
   const fr=document.querySelector('[data-filter-rating]');
-  fr && fr.addEventListener('change',()=>{ state.minRating=parseFloat(fr.value)||0; renderLogbook(); });
+  fr && fr.addEventListener('change',()=>{ state.minRating=parseFloat(fr.value)||0; state.showAll=false; renderLogbook(); });
   const so=document.querySelector('[data-sort]');
   so && so.addEventListener('change',()=>{ state.sort=so.value; renderLogbook(); });
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
@@ -1327,7 +1363,7 @@ function initToolbar(){
 /* ---------- global click/actions ---------- */
 function initActions(){
   document.addEventListener('click',e=>{
-    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],a[href^="#"]');
+    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],a[href^="#"]');
     if(!t) return;
 
     if(t.matches('[data-friend-remove]')){ e.preventDefault(); Sync.removeFriendCloud(t.dataset.friendRemove); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
@@ -1342,12 +1378,14 @@ function initActions(){
       const dd=document.querySelector('[data-profile-dropdown]'); if(dd) dd.hidden=true;
       window.print(); return; }
     if(t.hasAttribute('data-clear-filters')){ e.preventDefault();
-      state.q=state.cuisine=''; state.minRating=0; state.sort='default';
+      state.q=state.cuisine=''; state.minRating=0; state.sort='default'; state.showAll=false;
       const sb=document.querySelector('[data-search]'); if(sb) sb.value='';
       const fc=document.querySelector('[data-filter-cuisine]'); if(fc) fc.value='';
       const frt=document.querySelector('[data-filter-rating]'); if(frt) frt.value='0';
       const so=document.querySelector('[data-sort]'); if(so) so.value='default';
       renderLogbook(); return; }
+    if(t.hasAttribute('data-show-all')){ e.preventDefault();
+      state.showAll = true; renderLogbook(); return; }
     if(t.hasAttribute('data-share-open')){ e.preventDefault();
       const dd=document.querySelector('[data-profile-dropdown]'); if(dd) dd.hidden=true;
       document.getElementById('friends').scrollIntoView({behavior:'smooth'});
@@ -1362,7 +1400,7 @@ function initActions(){
         Sync.addFriendByHandle(v).then(ok=>{ if(ok){ const fi=document.querySelector('[data-friend-input]'); if(fi) fi.value=''; } });
       } else { importCode(v); }
       return; }
-    if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.view='grid'; syncToolbarUI(); renderLogbook();
+    if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.view='grid'; state.showAll=false; syncToolbarUI(); renderLogbook();
       document.getElementById('logbook').scrollIntoView({behavior:'smooth'}); return; }
 
     const href=t.getAttribute('href');

@@ -84,11 +84,11 @@ create policy profiles_read   on public.profiles for select to authenticated usi
 create policy profiles_write  on public.profiles for insert to authenticated with check (id = auth.uid());
 create policy profiles_update on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
--- ---- places: readable by all signed-in; insert by anyone; update by creator
+-- ---- places: publicly readable (the catalogue); insert by anyone signed-in; update by creator
 drop policy if exists places_read   on public.places;
 drop policy if exists places_write  on public.places;
 drop policy if exists places_update on public.places;
-create policy places_read   on public.places for select to authenticated using (true);
+create policy places_read   on public.places for select to anon, authenticated using (true);
 create policy places_write  on public.places for insert to authenticated with check (created_by = auth.uid());
 create policy places_update on public.places for update to authenticated using (created_by = auth.uid());
 
