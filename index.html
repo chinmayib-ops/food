@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Bengaluru Eats — Your Filter-Coffee Logbook</title>
-<meta name="description" content="A personal, editorial logbook for rating where Bengaluru eats. Rate, note & photograph plates, build your logbook, map it, and share it with friends — no account, no server." />
+<meta name="description" content="A personal, editorial logbook for rating where Bengaluru eats. Rate, note &amp; photograph plates, follow friends by handle, and watch the city's verdict roll in — synced across every device you sign in on." />
 <meta property="og:title" content="Bengaluru Eats — Your Filter-Coffee Logbook" />
-<meta property="og:description" content="Rate, note & map every plate in the city. Share your logbook with friends. No account, no server." />
+<meta property="og:description" content="Rate every plate in the city. Follow friends by handle. Synced across devices." />
 <meta property="og:type" content="website" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,7 +67,7 @@
     <span class="sep"></span>
     <span>Rate · Note · Map Every Plate</span>
     <span class="sep"></span>
-    <span>Share With Friends</span>
+    <span>Follow Friends · Live</span>
   </div>
 </header>
 
@@ -78,12 +78,14 @@
     <h1>
       Rate Bengaluru, <em>one&nbsp;plate</em><br/>
       at a time.
-      <span class="small">No account, no server. Your logbook — ratings, notes, photos &amp; map — lives on this device and shares as a single link.</span>
+      <span class="small cloud-only">Sign in with email — no password. Your ratings, notes, photos &amp; wishlist sync to every device you sign in on, and your friends' verdicts roll in live.</span>
+      <span class="small local-only">No account, no server. Your logbook — ratings, notes, photos &amp; map — lives on this device and shares as a single link.</span>
     </h1>
     <p class="standfirst">
-      Make a profile, rate the places you've actually eaten at, add a note and a
-      photo, pin them on the map, and keep a wishlist of what's next. Trade
-      logbooks with friends using one share code and compare the city plate for plate.
+      Sign in with an email link, rate the places you've actually eaten at, add a note
+      and a photo, pin them on the map, and keep a wishlist of what's next. Follow
+      friends by <em>@handle</em> to see their verdicts live, or trade logbooks the
+      old-fashioned way with a single share link.
     </p>
     <a class="read-cta" href="#logbook">Start your logbook <span class="arrow">→</span></a>
     <div class="meta-line">
@@ -155,15 +157,15 @@
 <section class="contents">
   <div class="contents-head">
     <div class="label">The five-step issue</div>
-    <h2>Everything is <em>yours</em>, kept on your device, shareable in one&nbsp;link.</h2>
-    <p>No sign-up wall, no email. Work through these in order; we recommend with chai.</p>
+    <h2>Your taste, your <em>logbook</em>, your friends — synced across every device.</h2>
+    <p>Email magic-link sign-in, no password. Work through these in order; we recommend with chai.</p>
   </div>
   <div class="contents-list">
     <a class="toc-item" href="#" data-signin>
       <div class="num">01</div><div class="thumb"></div>
       <div class="body"><h3>Create your <em>profile</em>.</h3>
-        <div class="dek">A name and a handle, stored locally. That's the whole sign-up.</div>
-        <div class="byline">Step one · 10 seconds</div></div>
+        <div class="dek">Email magic-link, no password. Pick a handle so friends can find you.</div>
+        <div class="byline">Step one · 30 seconds</div></div>
       <div class="pg">01<span class="arrow">↗</span></div>
     </a>
     <a class="toc-item" href="#logbook" data-tab="all">
@@ -189,8 +191,8 @@
     </a>
     <a class="toc-item" href="#friends">
       <div class="num">05</div><div class="thumb"></div>
-      <div class="body"><h3>Share &amp; <em>compare</em>.</h3>
-        <div class="dek">Copy your logbook link; paste theirs. Compare the city side by side.</div>
+      <div class="body"><h3>Follow your <em>friends</em>.</h3>
+        <div class="dek">Add friends by <em>@handle</em> to see their verdicts live. Or trade share-links for friends who aren't signed up.</div>
         <div class="byline">Step five · Friends</div></div>
       <div class="pg">05</div>
     </a>
@@ -249,31 +251,32 @@
   <div class="lists-head">
     <div>
       <div class="lbl">Friends &amp; Sharing</div>
-      <h2>Compare logbooks. <em>No server</em> required.</h2>
+      <h2>See what your friends are <em>tasting</em>, live.</h2>
     </div>
     <a class="more" href="#logbook">Back to the logbook →</a>
   </div>
 
   <div class="share-grid">
     <div class="share-card">
-      <div class="sc-label">Your share code</div>
-      <h3>Send your logbook to a <em>friend</em>.</h3>
-      <p class="sc-sub">One link. They open it, your rated plates &amp; notes land in their Friends feed. (Photos stay on your device — too big to share in a link.)</p>
+      <div class="sc-label">Follow a friend</div>
+      <h3>Enter their <em>@handle</em>.</h3>
+      <p class="sc-sub">Their plates land in your Friends feed and update live as they rate new places. <span class="local-only">Or paste a share link from someone offline — same result, no live updates.</span><span class="cloud-only">Or paste a share link from someone without an account.</span></p>
+      <div class="sc-code-row">
+        <input type="text" data-friend-input placeholder="@handle or share link…" />
+        <button type="button" class="sc-btn" data-friend-add>Add friend</button>
+      </div>
+      <div class="sc-hint cloud-only">Handles live in your friends list; you can remove anyone any time.</div>
+      <div class="sc-hint local-only">Nothing is uploaded — decoding happens in your browser.</div>
+    </div>
+    <div class="share-card">
+      <div class="sc-label">Share your logbook</div>
+      <h3>For friends <em>not</em> signed up.</h3>
+      <p class="sc-sub">One link. They open it, your rated plates &amp; notes land in their Friends feed without an account. (Photos stay on your device.)</p>
       <div class="sc-code-row">
         <input type="text" data-share-link readonly value="Sign in to generate your link" />
         <button type="button" class="sc-btn" data-share-copy>Copy link</button>
       </div>
       <div class="sc-hint" data-share-hint>You need a profile before you can share.</div>
-    </div>
-    <div class="share-card">
-      <div class="sc-label">Add a friend</div>
-      <h3>Paste a friend's <em>code</em> or link.</h3>
-      <p class="sc-sub">Their logbook merges into yours as a separate, comparable feed.</p>
-      <div class="sc-code-row">
-        <input type="text" data-friend-input placeholder="Paste link or code here…" />
-        <button type="button" class="sc-btn" data-friend-add>Add friend</button>
-      </div>
-      <div class="sc-hint">Nothing is uploaded — decoding happens in your browser.</div>
     </div>
   </div>
 

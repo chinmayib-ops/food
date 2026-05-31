@@ -645,7 +645,7 @@ function renderFeature(){
 function renderFriends(){
   const wrap=document.querySelector('[data-friends-list]'); if(!wrap) return;
   const fr=Friends.all();
-  if(!fr.length){ wrap.innerHTML=`<div class="empty-state">No friends added yet. Paste a friend's code above to compare logbooks.</div>`; return; }
+  if(!fr.length){ wrap.innerHTML=`<div class="empty-state">No friends yet. Enter an <b>@handle</b> above to follow someone, or paste a share link from a friend who isn't signed up.</div>`; return; }
   wrap.innerHTML=fr.map(f=>{
     const n=Object.keys(f.entries||f.ratings||{}).length;
     const init=(f.name||'?').trim().charAt(0).toUpperCase();
