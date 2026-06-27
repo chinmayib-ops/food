@@ -48,7 +48,6 @@ const HOODS = {
   'cooke town':[13.0030,77.6230],'cunningham road':[12.9869,77.5947],"st. mark's road":[12.9740,77.6030],
   'lalbagh':[12.9507,77.5848],'church street':[12.9750,77.6060],'commercial street':[12.9830,77.6090],
 };
-const CITY_CENTER = [12.9716, 77.5946];
 
 /* ---------- utilities ---------- */
 function slugify(s){ return (s||'').toLowerCase().replace(/['']/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
@@ -212,10 +211,11 @@ const Sync = (function(){
 
   function localEntryRows(){
     return Object.entries(Entries.all())
-      .filter(([,e])=>e.rating||e.note||e.photo)
+      .filter(([,e])=>e.rating||e.note||e.photo||(e.dishes&&e.dishes.length))
       .map(([pid,e])=>({ user_id:me.id, place_id:pid, rating:e.rating||0,
         note:e.note||'', visited_at:e.visitedAt||null,
         photo_url:(e.photo&&/^https?:/.test(e.photo))?e.photo:null,
+        dishes:e.dishes||null, super_rated:!!e.superRated,
         updated_at:e.updatedAt||new Date().toISOString() }));
   }
 
@@ -244,7 +244,11 @@ const Sync = (function(){
       const fr=await C.DB.listFriends(me.id), objs=[];
       for(const f of fr){
         const fe=await C.DB.listFriendEntries(f.id), en={};
-        fe.forEach(r=>{ en[r.place_id]={ rating:Number(r.rating)||0, note:r.note||'', visitedAt:r.visited_at||'' }; });
+        fe.forEach(r=>{ en[r.place_id]={
+          rating:Number(r.rating)||0, note:r.note||'',
+          visitedAt:r.visited_at||'', updatedAt:r.updated_at,
+          dishes:r.dishes||null, superRated:!!r.super_rated
+        }; });
         objs.push({ name:f.name, handle:f.handle, uid:f.id, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
       }
       const keep=loadJSON(KEY_FRIENDS,[]).filter(x=>!x.cloud);
@@ -369,6 +373,171 @@ function recommenders(id){
   return Friends.all().filter(f=>friendRating(f,id)>=4).map(f=>f.name.split(' ')[0]);
 }
 
+/* Detailed aggregation for the restaurant page — collects every entry
+   for this place (yours + friends), groups dishes, finds extremes. */
+function placeAggregate(placeId){
+  const all=[];
+  const mine=Entries.get(placeId);
+  if(mine&&(mine.rating||(mine.dishes&&mine.dishes.length))){
+    all.push({ by:'you', rating:mine.rating, note:mine.note,
+      dishes:mine.dishes||[], when:mine.updatedAt||mine.createdAt||mine.visitedAt,
+      superRated:!!mine.superRated, isMine:true });
+  }
+  Friends.all().forEach(f=>{
+    const e=(f.entries||{})[placeId];
+    if(e&&(e.rating||(e.dishes&&e.dishes.length))){
+      all.push({ by:f.name, byHandle:f.handle, rating:e.rating, note:e.note,
+        dishes:e.dishes||[], when:e.updatedAt||e.visitedAt,
+        superRated:!!e.superRated, isMine:false });
+    }
+  });
+
+  const ratings=all.filter(x=>x.rating).map(x=>x.rating);
+  const avg=ratings.length?ratings.reduce((a,b)=>a+b,0)/ratings.length:0;
+  const networkOnly=all.filter(x=>!x.isMine&&x.rating).map(x=>x.rating);
+  const networkAvg=networkOnly.length?networkOnly.reduce((a,b)=>a+b,0)/networkOnly.length:0;
+
+  // dish-level aggregation: group by case-insensitive dish name
+  const dishMap={};
+  all.forEach(x=>(x.dishes||[]).forEach(d=>{
+    if(!d||!d.name||!d.rating) return;
+    const key=d.name.toLowerCase().trim();
+    if(!key) return;
+    if(!dishMap[key]) dishMap[key]={ name:d.name.trim(), ratings:[] };
+    dishMap[key].ratings.push(Number(d.rating));
+  }));
+  const dishes=Object.values(dishMap).map(d=>({
+    name:d.name,
+    avg:Math.round(d.ratings.reduce((a,b)=>a+b,0)/d.ratings.length*10)/10,
+    count:d.ratings.length
+  })).sort((a,b)=>b.avg-a.avg);
+
+  return {
+    count:ratings.length,
+    avg:Math.round(avg*10)/10,
+    networkCount:networkOnly.length,
+    networkAvg:Math.round(networkAvg*10)/10,
+    dishes,
+    reviews:all.sort((a,b)=>new Date(b.when||0)-new Date(a.when||0))
+  };
+}
+
+function timeAgo(date){
+  if(!date) return '';
+  const d=new Date(date);
+  if(isNaN(d)) return '';
+  const s=(Date.now()-d.getTime())/1000;
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+' min ago';
+  if(s<86400) return Math.floor(s/3600)+' hr ago';
+  if(s<86400*7) return Math.floor(s/86400)+' days ago';
+  if(s<86400*30) return Math.floor(s/86400/7)+' wk ago';
+  if(s<86400*365) return Math.floor(s/86400/30)+' mo ago';
+  return Math.floor(s/86400/365)+' yr ago';
+}
+
+function openPlaceDetail(placeId){
+  const p=Places.byId(placeId); if(!p) return;
+  const ag=placeAggregate(placeId);
+  const mine=Entries.get(placeId);
+  const body=document.querySelector('[data-place-body]');
+  if(!body) return;
+
+  // "loved for / weakest on" callouts — only when we have enough variance
+  let callouts='';
+  if(ag.dishes.length>=2){
+    const best=ag.dishes[0], worst=ag.dishes[ag.dishes.length-1];
+    if(best.avg-worst.avg>=0.6){
+      callouts=`<div class="pd-callouts">
+        <div class="pd-callout loved">Loved for the <em>${esc(best.name)}</em> · ★ ${fmt(best.avg)}</div>
+        <div class="pd-callout weak">Weakest on <em>${esc(worst.name)}</em> · ★ ${fmt(worst.avg)}</div>
+      </div>`;
+    } else {
+      callouts=`<div class="pd-callouts"><div class="pd-callout loved">Top dish: <em>${esc(best.name)}</em> · ★ ${fmt(best.avg)}</div></div>`;
+    }
+  } else if(ag.dishes.length===1){
+    callouts=`<div class="pd-callouts"><div class="pd-callout loved">Best dish: <em>${esc(ag.dishes[0].name)}</em> · ★ ${fmt(ag.dishes[0].avg)}</div></div>`;
+  }
+
+  const lastNet=ag.reviews.find(r=>!r.isMine);
+  const recentBlurb=lastNet&&lastNet.when
+    ? `Last reviewed by your network <em>${esc(timeAgo(lastNet.when))}</em>`
+    : '';
+
+  const onWish=Wishlist.has(placeId);
+
+  body.innerHTML=`
+    <div class="pd-header">
+      <div class="pd-meta">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
+      <h2 id="pd-title">${esc(p.name)}</h2>
+      ${p.dish?`<div class="pd-dish-tag">Known for: <em>${esc(p.dish)}</em></div>`:''}
+    </div>
+
+    <div class="pd-stats">
+      <div class="pd-stat ${ag.networkCount?'has-data':'no-data'}">
+        <div class="pd-stat-num">${ag.networkCount?fmt(ag.networkAvg):'—'}</div>
+        <div class="pd-stat-lbl">your network</div>
+        <div class="pd-stat-sub">${ag.networkCount?`${ag.networkCount} friend${ag.networkCount===1?'':'s'}`:'no friends rated yet'}</div>
+      </div>
+      <div class="pd-stat ${ag.count?'has-data':'no-data'}">
+        <div class="pd-stat-num">${ag.count?fmt(ag.avg):'—'}</div>
+        <div class="pd-stat-lbl">all in</div>
+        <div class="pd-stat-sub">${ag.count?`${ag.count} ${ag.count===1?'rating':'ratings'}`:'no ratings yet'}</div>
+      </div>
+      <div class="pd-stat your-stat">
+        <div class="pd-stat-num">${mine&&mine.rating?fmt(mine.rating):'—'}</div>
+        <div class="pd-stat-lbl">your rating</div>
+        <div class="pd-stat-sub"><button type="button" class="link-btn" data-edit-entry="${esc(placeId)}">${mine&&mine.rating?'Edit ↗':'Rate this ↗'}</button></div>
+      </div>
+    </div>
+
+    ${callouts}
+    ${recentBlurb?`<div class="pd-recent">${recentBlurb}</div>`:''}
+
+    <div class="pd-actions">
+      <button type="button" class="pd-act" data-wish="${esc(placeId)}">${onWish?'★ Wishlisted':'☆ Add to wishlist'}</button>
+      <button type="button" class="pd-act" data-edit-entry="${esc(placeId)}">${mine?'Edit your review':'Add note &amp; photo'}</button>
+    </div>
+
+    ${ag.dishes.length?`
+      <div class="pd-section">
+        <h3>By the dish</h3>
+        <div class="pd-dishes">
+          ${ag.dishes.map(d=>`
+            <div class="pd-dish-row">
+              <span class="pd-dish-name">${esc(d.name)}</span>
+              <span class="pd-dish-stars"><span class="rating"><span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(d.avg/5)*100}%">★★★★★</span></span></span>
+              <span class="pd-dish-avg">${fmt(d.avg)}</span>
+              <span class="pd-dish-count">${d.count} ${d.count===1?'review':'reviews'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `:''}
+
+    ${ag.reviews.length?`
+      <div class="pd-section">
+        <h3>Recent reviews <span class="pd-section-count">${ag.reviews.length}</span></h3>
+        <div class="pd-reviews">
+          ${ag.reviews.slice(0,8).map(r=>`
+            <div class="pd-review${r.isMine?' is-mine':''}">
+              <div class="pd-review-head">
+                <span class="pd-review-by"><b>${esc(r.by)}</b>${r.byHandle?` <span class="pd-review-handle">@${esc(r.byHandle)}</span>`:''}</span>
+                ${r.rating?`<span class="pd-review-rating">★ ${fmt(r.rating)}</span>`:''}
+                ${r.when?`<span class="pd-review-when">${esc(timeAgo(r.when))}</span>`:''}
+                ${r.superRated?`<span class="super-badge inline">✦</span>`:''}
+              </div>
+              ${r.note?`<div class="pd-review-note">"${esc(r.note)}"</div>`:''}
+              ${r.dishes&&r.dishes.length?`<div class="pd-review-dishes">${r.dishes.map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `:`<div class="pd-empty">No ratings yet — be the first to log a plate here.</div>`}
+  `;
+  openModal('place');
+}
+
 /* ---------- toast ---------- */
 const Toast=(()=>{ const el=document.querySelector('[data-toast]'); let t=null;
   return { show(m){ if(!el)return; el.innerHTML=m; el.hidden=false;
@@ -456,8 +625,7 @@ function initLike(btn){
 /* ============================================================
    RENDER: logbook (grid / map) with toolbar
    ============================================================ */
-let state = { tab:'all', view:'grid', q:'', cuisine:'', minRating:0, sort:'default', showAll:false };
-let mapObj=null, mapLayer=null;
+let state = { tab:'all', q:'', cuisine:'', minRating:0, sort:'default', showAll:false };
 
 function visiblePlaces(){
   const reg=Places.registry();
@@ -502,7 +670,7 @@ function placeCard(p){
       <span class="meal-label">${esc(p.dish||'A Bengaluru plate')}</span>
       ${recs.length?`<span class="rec-badge">◦ ${esc(recs[0])} recommends</span>`:''}
     </div>
-    <div class="name">${esc(p.name)}</div>
+    <button type="button" class="name name-btn" data-place-detail="${esc(p.id)}">${esc(p.name)}</button>
     <div class="hood">${esc(p.hood)}${p.cuisine?` · <span class="cz">${esc(p.cuisine)}</span>`:''}</div>
     <div class="row">${aggLine}${e&&e.superRated?'<span class="super-badge" title="Adventurous Visit — spun &amp; verified">✦ Adventurous</span>':''}</div>
     ${e&&e.dishes&&e.dishes.length?`<div class="dish-list">${e.dishes.map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
@@ -522,7 +690,6 @@ function renderLogbook(){
   const grid=document.querySelector('[data-log-grid]');
   const empty=document.querySelector('[data-log-empty]');
   const title=document.querySelector('[data-logbook-title]');
-  const mapEl=document.querySelector('[data-map]');
   if(!grid) return;
 
   if(state.tab==='mine')      title.innerHTML='Plates <em>you</em> have rated.';
@@ -531,13 +698,6 @@ function renderLogbook(){
   else                        title.innerHTML='Every plate in the city, <em>your</em> verdict.';
 
   const list=visiblePlaces();
-
-  if(state.view==='map'){
-    grid.hidden=true; empty.hidden=true; mapEl.hidden=false;
-    renderMap(list);
-    return;
-  }
-  mapEl.hidden=true;
 
   if(!list.length){
     grid.hidden=true; empty.hidden=false;
@@ -566,33 +726,6 @@ function renderLogbook(){
   }
 }
 
-/* ---------- map ---------- */
-function renderMap(list){
-  if(typeof L==='undefined'){
-    document.querySelector('[data-map]').innerHTML='<div class="empty-state">Map library still loading — give it a second and toggle again.</div>';
-    return;
-  }
-  if(!mapObj){
-    mapObj=L.map('map',{scrollWheelZoom:false}).setView(CITY_CENTER,12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19, attribution:'&copy; OpenStreetMap'
-    }).addTo(mapObj);
-  }
-  if(mapLayer) mapLayer.remove();
-  mapLayer=L.layerGroup().addTo(mapObj);
-  const pts=[];
-  list.forEach(p=>{
-    const c=Places.coords(p); if(!c) return;
-    const ag=aggregate(p.id), mine=Entries.rating(p.id);
-    const m=L.marker(c).addTo(mapLayer);
-    m.bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.hood)} · ${esc(p.cuisine||'')}<br>`+
-      (mine?`Your rating: ★ ${fmt(mine)}/5`:ag.count?`Avg ★ ${fmt(ag.avg)} (${ag.count})`:'Unrated'));
-    pts.push(c);
-  });
-  if(pts.length) mapObj.fitBounds(pts,{padding:[40,40],maxZoom:14});
-  else mapObj.setView(CITY_CENTER,12);
-  setTimeout(()=>mapObj.invalidateSize(),60);
-}
 
 /* ============================================================
    RENDER: stats dashboard
@@ -642,23 +775,87 @@ function renderFeature(){
 /* ============================================================
    RENDER: friends list + comparison
    ============================================================ */
-function renderFriends(){
-  const wrap=document.querySelector('[data-friends-list]'); if(!wrap) return;
+
+/* Compact follow row: "Following: @alice @bob · 3 of your friends" */
+function renderFollowRow(){
+  const row=document.querySelector('[data-follow-row]'); if(!row) return;
   const fr=Friends.all();
-  if(!fr.length){ wrap.innerHTML=`<div class="empty-state">No friends yet. Enter an <b>@handle</b> above to follow someone, or paste a share link from a friend who isn't signed up.</div>`; return; }
-  wrap.innerHTML=fr.map(f=>{
-    const n=Object.keys(f.entries||f.ratings||{}).length;
-    const init=(f.name||'?').trim().charAt(0).toUpperCase();
-    return `<div class="friend-row">
-      <span class="favatar">${esc(init)}</span>
-      <div class="finfo">
-        <div class="fname">${esc(f.name)} <span class="fhandle">@${esc(f.handle)}</span></div>
-        <div class="fmeta">${n} plate${n===1?'':'s'} rated · added ${esc(new Date(f.addedAt).toLocaleDateString())}</div>
+  if(!fr.length){ row.hidden=true; row.innerHTML=''; return; }
+  row.hidden=false;
+  row.innerHTML=`
+    <span class="fr-lbl">Following</span>
+    <div class="fr-chips">
+      ${fr.map(f=>{
+        const init=(f.name||'?').trim().charAt(0).toUpperCase();
+        return `<span class="fr-chip" title="${esc(f.name)}">
+          <span class="fr-av">${esc(init)}</span>
+          <span class="fr-handle">@${esc(f.handle)}</span>
+          <button type="button" class="fr-x" data-friend-remove="${esc(f.handle)}" aria-label="Unfollow ${esc(f.handle)}" title="Unfollow">×</button>
+        </span>`;
+      }).join('')}
+    </div>
+    <span class="fr-count">${fr.length} ${fr.length===1?'friend':'friends'}</span>`;
+}
+
+/* The activity feed — every friend's entries, chronologically. */
+function renderActivityFeed(){
+  const wrap=document.querySelector('[data-activity-feed]'); if(!wrap) return;
+  const fr=Friends.all();
+  if(!fr.length){
+    wrap.innerHTML=`<div class="empty-state">No friends followed yet. Add an <b>@handle</b> below to see what they're eating.</div>`;
+    return;
+  }
+  // flatten all friend entries
+  const items=[];
+  fr.forEach(f=>{
+    const entries=f.entries||f.ratings||{};
+    Object.entries(entries).forEach(([pid,e])=>{
+      // entries can be a number (v1 ratings dict) or object (v2 entries)
+      const obj=(typeof e==='number')?{rating:e}:e;
+      if(!obj.rating && !(obj.note||'').trim() && !(obj.dishes&&obj.dishes.length)) return;
+      items.push({
+        friend:f, placeId:pid,
+        rating:obj.rating||0, note:obj.note||'',
+        dishes:obj.dishes||[], superRated:!!obj.superRated,
+        when:obj.updatedAt||obj.visitedAt||f.addedAt
+      });
+    });
+  });
+  if(!items.length){
+    wrap.innerHTML=`<div class="empty-state">Your friends haven't rated anything yet. Check back when they do.</div>`;
+    return;
+  }
+  items.sort((a,b)=>new Date(b.when||0)-new Date(a.when||0));
+
+  wrap.innerHTML=items.slice(0,30).map(it=>{
+    const p=Places.byId(it.placeId);
+    if(!p) return '';
+    const init=(it.friend.name||'?').trim().charAt(0).toUpperCase();
+    const action=it.rating?`rated`:`logged`;
+    const placeBtn=`<button type="button" class="af-place" data-place-detail="${esc(it.placeId)}">${esc(p.name)}</button>`;
+    return `<article class="af-item">
+      <span class="af-av">${esc(init)}</span>
+      <div class="af-body">
+        <div class="af-line">
+          <b>${esc(it.friend.name.split(' ')[0])}</b> ${action} ${placeBtn}
+          ${it.rating?`<span class="af-rating">★ ${fmt(it.rating)}</span>`:''}
+          ${it.superRated?`<span class="super-badge inline">✦</span>`:''}
+        </div>
+        <div class="af-meta">
+          <span class="af-handle">@${esc(it.friend.handle)}</span>
+          ${it.when?`<span class="af-when">${esc(timeAgo(it.when))}</span>`:''}
+          <span class="af-hood">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</span>
+        </div>
+        ${it.note?`<div class="af-note">"${esc(it.note)}"</div>`:''}
+        ${it.dishes&&it.dishes.length?`<div class="af-dishes">${it.dishes.slice(0,4).map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
       </div>
-      <button type="button" class="fcompare" data-compare="${esc(f.handle)}">Compare</button>
-      <button type="button" class="fremove" data-friend-remove="${esc(f.handle)}">Remove</button>
-    </div>`;
-  }).join('');
+    </article>`;
+  }).filter(Boolean).join('');
+
+  if(items.length>30){
+    wrap.insertAdjacentHTML('beforeend',
+      `<div class="af-more">Showing the most recent <b>30</b> of <b>${items.length}</b> · keep rating to see more</div>`);
+  }
 }
 
 function openCompare(handle){
@@ -747,7 +944,7 @@ function importCode(raw){
   const isNew=Friends.add(friend);
   Toast.show(`${esc(friend.name.split(' ')[0])}'s logbook ${isNew?'added':'updated'} · ${Object.keys(entries).length} plates`);
   const fi=document.querySelector('[data-friend-input]'); if(fi) fi.value='';
-  state.tab='friends'; state.view='grid'; syncToolbarUI(); renderAll();
+  state.tab='friends'; syncToolbarUI(); renderAll();
   document.getElementById('logbook').scrollIntoView({behavior:'smooth'});
 }
 
@@ -859,7 +1056,7 @@ function initModals(){
       lat:c?c[0]:undefined, lng:c?c[1]:undefined });
     if(fd.get('wishlist')) Wishlist.toggle(id);
     af.reset(); closeModal(af.closest('[data-modal]'));
-    state.tab=fd.get('wishlist')?'wishlist':'all'; state.view='grid'; syncToolbarUI(); renderAll();
+    state.tab=fd.get('wishlist')?'wishlist':'all'; syncToolbarUI(); renderAll();
     Toast.show('Added <em>'+esc(name)+'</em>');
     const card=document.querySelector(`.log-card[data-place-id="${id}"]`);
     card && card.scrollIntoView({behavior:'smooth',block:'center'});
@@ -1344,7 +1541,6 @@ const SpinUI = (function(){
 /* ---------- toolbar ---------- */
 function syncToolbarUI(){
   document.querySelectorAll('[data-logbook-filters] [data-tab]').forEach(a=>a.classList.toggle('on',a.dataset.tab===state.tab));
-  document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===state.view));
 }
 function initToolbar(){
   const s=document.querySelector('[data-search]');
@@ -1355,19 +1551,17 @@ function initToolbar(){
   fr && fr.addEventListener('change',()=>{ state.minRating=parseFloat(fr.value)||0; state.showAll=false; renderLogbook(); });
   const so=document.querySelector('[data-sort]');
   so && so.addEventListener('change',()=>{ state.sort=so.value; renderLogbook(); });
-  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
-    state.view=b.dataset.view; syncToolbarUI(); renderLogbook();
-  }));
 }
 
 /* ---------- global click/actions ---------- */
 function initActions(){
   document.addEventListener('click',e=>{
-    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],a[href^="#"]');
+    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],[data-place-detail],a[href^="#"]');
     if(!t) return;
 
     if(t.matches('[data-friend-remove]')){ e.preventDefault(); Sync.removeFriendCloud(t.dataset.friendRemove); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
     if(t.matches('[data-compare]')){ e.preventDefault(); openCompare(t.dataset.compare); return; }
+    if(t.matches('[data-place-detail]')){ e.preventDefault(); openPlaceDetail(t.dataset.placeDetail); return; }
     if(t.matches('[data-edit-entry]')){ e.preventDefault(); openEntry(t.dataset.editEntry); return; }
     if(t.matches('[data-wish]')){ e.preventDefault(); e.stopPropagation();
       const on=Wishlist.toggle(t.dataset.wish);
@@ -1400,7 +1594,7 @@ function initActions(){
         Sync.addFriendByHandle(v).then(ok=>{ if(ok){ const fi=document.querySelector('[data-friend-input]'); if(fi) fi.value=''; } });
       } else { importCode(v); }
       return; }
-    if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.view='grid'; state.showAll=false; syncToolbarUI(); renderLogbook();
+    if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.showAll=false; syncToolbarUI(); renderLogbook();
       document.getElementById('logbook').scrollIntoView({behavior:'smooth'}); return; }
 
     const href=t.getAttribute('href');
@@ -1412,7 +1606,7 @@ function initActions(){
 }
 
 /* ---------- boot ---------- */
-function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); }
+function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); }
 
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.rate-dock .rate').forEach(r=>initRating(r));
@@ -1427,4 +1621,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 });
 document.addEventListener('profile:change',renderAll);
-document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFriends(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });
+document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });

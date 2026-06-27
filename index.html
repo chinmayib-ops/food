@@ -11,7 +11,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -65,7 +64,7 @@
   <div class="strapline">
     <span>Your Personal Logbook</span>
     <span class="sep"></span>
-    <span>Rate · Note · Map Every Plate</span>
+    <span>Rate &amp; Note Every Plate</span>
     <span class="sep"></span>
     <span>Follow Friends · Live</span>
   </div>
@@ -234,15 +233,10 @@
       <option value="alpha">A → Z</option>
       <option value="area">By area</option>
     </select>
-    <div class="tb-views">
-      <button type="button" class="tb-view on" data-view="grid" aria-label="Grid view">▦ Grid</button>
-      <button type="button" class="tb-view" data-view="map" aria-label="Map view">⊕ Map</button>
-    </div>
     <button type="button" class="tb-print" data-print aria-label="Print or save as PDF">⎙ PDF</button>
   </div>
 
   <div class="log-grid" data-log-grid><!-- rendered by script.js --></div>
-  <div id="map" class="map-view" data-map hidden></div>
   <div class="empty-state" data-log-empty hidden></div>
 </section>
 
@@ -256,16 +250,23 @@
     <a class="more" href="#logbook">Back to the logbook →</a>
   </div>
 
+  <!-- compact "following" pill row -->
+  <div class="follow-row" data-follow-row><!-- rendered by script.js --></div>
+
+  <!-- chronological activity feed (primary view) -->
+  <div class="activity-feed" data-activity-feed><!-- rendered by script.js --></div>
+
+  <!-- utility cards: follow a new handle / share your own link -->
   <div class="share-grid">
     <div class="share-card">
       <div class="sc-label">Follow a friend</div>
       <h3>Enter their <em>@handle</em>.</h3>
-      <p class="sc-sub">Their plates land in your Friends feed and update live as they rate new places. <span class="local-only">Or paste a share link from someone offline — same result, no live updates.</span><span class="cloud-only">Or paste a share link from someone without an account.</span></p>
+      <p class="sc-sub">Their plates land in your activity feed and update live as they rate new places. <span class="local-only">Or paste a share link from someone offline — same result, no live updates.</span><span class="cloud-only">Or paste a share link from someone without an account.</span></p>
       <div class="sc-code-row">
         <input type="text" data-friend-input placeholder="@handle or share link…" />
         <button type="button" class="sc-btn" data-friend-add>Add friend</button>
       </div>
-      <div class="sc-hint cloud-only">Handles live in your friends list; you can remove anyone any time.</div>
+      <div class="sc-hint cloud-only">Tap any name in your Following row to remove.</div>
       <div class="sc-hint local-only">Nothing is uploaded — decoding happens in your browser.</div>
     </div>
     <div class="share-card">
@@ -279,8 +280,6 @@
       <div class="sc-hint" data-share-hint>You need a profile before you can share.</div>
     </div>
   </div>
-
-  <div class="friends-list" data-friends-list><!-- rendered by script.js --></div>
 </section>
 
 <!-- ============ END FOOT ============ -->
@@ -542,12 +541,19 @@
 </div>
 
 <!-- ============ TOAST ============ -->
+<!-- ============ RESTAURANT DETAIL MODAL ============ -->
+<div class="modal-backdrop" data-modal="place" hidden>
+  <div class="modal modal-place" role="dialog" aria-modal="true" aria-labelledby="pd-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <div data-place-body><!-- rendered by script.js --></div>
+  </div>
+</div>
+
 <div class="toast" data-toast hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
 <script src="config.js" defer></script>
 <script src="supabase.js" defer></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="script.js" defer></script>
 </body>
 </html>
