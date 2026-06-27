@@ -80,8 +80,21 @@
     },
 
     async listPlaces() {
-      const { data } = await sb.from('places').select('*');
-      return data || [];
+      // PostgREST caps SELECT at 1,000 rows per call by default.
+      // Paginate via .range() so the full catalogue comes through.
+      const PAGE = 1000;
+      const all = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await sb.from('places')
+          .select('*')
+          .range(from, from + PAGE - 1);
+        if (error || !data || !data.length) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
     async upsertPlaces(rows) {
       if (!rows.length) return null;
