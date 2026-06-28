@@ -1806,6 +1806,133 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
 .grid-more .link-btn{ font-size: 11px; letter-spacing: .18em; }
 
 /* ============================================================
+   BROWSE HOME  (search-first lobby for the All Places tab)
+   ============================================================ */
+.browse-home{
+  padding: 32px 0 8px;
+  max-width: 100%;
+}
+.browse-home .bh-h3{
+  font-family: var(--ff-disp);
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.02; letter-spacing: -.015em;
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-weight: 400;
+}
+.browse-home .bh-h3 em{
+  color: var(--terra); font-style: italic;
+}
+.browse-home .bh-sub{
+  font-family: var(--ff-body);
+  font-size: 17px; line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 40px;
+  max-width: 56ch;
+}
+
+.bh-section{ margin-bottom: 32px; }
+.bh-head{
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.bh-lbl{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .24em; text-transform: uppercase;
+  color: var(--terra);
+}
+.bh-head .link-btn{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em;
+}
+
+.bh-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.bh-card{
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 18px 16px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit; color: inherit;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color .2s, transform .2s;
+}
+.bh-card:hover{
+  border-color: var(--ink);
+  transform: translateY(-2px);
+}
+.bh-eyebrow{
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--terra);
+}
+.bh-name{
+  font-family: var(--ff-disp);
+  font-size: 19px; line-height: 1.08;
+  color: var(--ink);
+  margin: 2px 0 6px;
+}
+.bh-blurb{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--ink-soft);
+  margin-top: auto;
+}
+
+.bh-cta{
+  border-top: 1px solid var(--ink);
+  margin-top: 22px;
+  padding: 24px 0 8px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  justify-content: center;
+}
+.bh-cta-lbl{
+  font-family: var(--ff-body); font-style: italic;
+  font-size: 18px; color: var(--ink-soft);
+}
+.bh-cta-btn{
+  background: var(--terra);
+  color: var(--paper);
+  border: 0;
+  padding: 14px 26px;
+  font-family: var(--ff-mono); font-size: 12px;
+  letter-spacing: .22em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background .2s, transform .2s;
+}
+.bh-cta-btn:hover{
+  background: var(--terra-dk);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 960px){
+  .bh-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px){
+  .bh-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px){
+  .bh-grid{ grid-template-columns: 1fr; }
+  .browse-home .bh-h3{ font-size: 28px; }
+}
+
+/* The browse-home replaces the empty-state styling when in this mode.
+   We override the .empty-state base so the lobby gets its own canvas. */
+.empty-state:has(.browse-home){
+  padding: 0;
+  max-width: 100%;
+  font-style: normal;
+  color: var(--ink);
+}
+
+/* ============================================================
    REDESIGNED PLACE CARD  (no empty photo placeholders)
    The old .photo-sq + gradients are no longer used by placeCard()
    — only rendered now when a real photo exists (.card-photo).

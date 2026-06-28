@@ -782,6 +782,91 @@ function diaryEntry(it){
     </article>`;
 }
 
+/* ============================================================
+   Browse home — the search-first lobby for the All Places tab.
+   Replaces the wall of 9k cards with a typographic landing that
+   nudges meaningful paths: friend recs, your wishlist, the spin.
+   ============================================================ */
+function bhCard(p, blurb){
+  return `<button type="button" class="bh-card" data-place-detail="${esc(p.id)}">
+    <div class="bh-eyebrow">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
+    <div class="bh-name">${esc(p.name)}</div>
+    <div class="bh-blurb">${esc(blurb)}</div>
+  </button>`;
+}
+
+function renderBrowseHome(){
+  const reg=Places.registry();
+  const total=reg.length;
+  const friends=Friends.all();
+
+  // Places at least one friend rated >=4 that you haven't rated yourself
+  const friendLoved=reg
+    .filter(p=>!Entries.rating(p.id))
+    .map(p=>{
+      let best=0, who=null;
+      friends.forEach(f=>{ const r=friendRating(f,p.id); if(r>best){ best=r; who=f; } });
+      return { p, fr:best, who };
+    })
+    .filter(x=>x.fr>=4 && x.who)
+    .sort((a,b)=>b.fr-a.fr)
+    .slice(0,4);
+
+  // Your wishlist (up to 4)
+  const wishlist=Wishlist.all()
+    .map(id=>Places.byId(id))
+    .filter(Boolean)
+    .slice(0,4);
+
+  // Header copy
+  let intro;
+  if(!Profile.get()){
+    intro=`<p class="bh-sub">Sign in, then type a name, area or cuisine above to start your logbook.</p>`;
+  } else if(!Entries.count()){
+    intro=`<p class="bh-sub">Type a name, area or cuisine above to find your first plate.</p>`;
+  } else {
+    intro=`<p class="bh-sub">Type a name, area or cuisine above. Or pick a way in below.</p>`;
+  }
+
+  return `
+    <div class="browse-home">
+      <h3 class="bh-h3">
+        Search Bengaluru's <em>${total.toLocaleString()}</em><br/>restaurants.
+      </h3>
+      ${intro}
+
+      ${friendLoved.length?`
+        <div class="bh-section">
+          <div class="bh-head">
+            <span class="bh-lbl">Loved by your friends</span>
+            <button type="button" class="link-btn" data-tab="friends">All friend ratings →</button>
+          </div>
+          <div class="bh-grid">
+            ${friendLoved.map(x=>bhCard(x.p, '★ '+fmt(x.fr)+' from '+esc(x.who.name.split(' ')[0]))).join('')}
+          </div>
+        </div>
+      `:''}
+
+      ${wishlist.length?`
+        <div class="bh-section">
+          <div class="bh-head">
+            <span class="bh-lbl">On your wishlist</span>
+            <button type="button" class="link-btn" data-tab="wishlist">Full wishlist →</button>
+          </div>
+          <div class="bh-grid">
+            ${wishlist.map(p=>bhCard(p,'Want to try')).join('')}
+          </div>
+        </div>
+      `:''}
+
+      <div class="bh-cta">
+        <span class="bh-cta-lbl">Decide for you?</span>
+        <button type="button" class="bh-cta-btn" data-spin-open>🫓 Spin the Dosa</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderLogbook(){
   const grid=document.querySelector('[data-log-grid]');
   const empty=document.querySelector('[data-log-empty]');
@@ -792,6 +877,16 @@ function renderLogbook(){
   else if(state.tab==='wishlist') title.innerHTML='Places you <em>want</em> to try.';
   else if(state.tab==='friends')  title.innerHTML='What your <em>friends</em> have tasted.';
   else                        title.innerHTML='Every plate in the city, <em>your</em> verdict.';
+
+  // Search-first behaviour for the All Places tab: don't paint the wall.
+  const noQuery = !state.q && !state.cuisine && !state.minRating;
+  if(state.tab==='all' && noQuery){
+    grid.classList.remove('diary-mode');
+    grid.hidden=true;
+    empty.hidden=false;
+    empty.innerHTML=renderBrowseHome();
+    return;
+  }
 
   const list=visiblePlaces();
 
