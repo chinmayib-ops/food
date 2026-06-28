@@ -23,6 +23,8 @@ body{
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;     /* iOS landscape auto-zoom */
+  -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
   overflow-x: hidden;
@@ -2514,6 +2516,261 @@ html:not(.cloud-mode) .local-only{ display: block; }
 }
 body[data-sync="cloud"] .pm-sync{ color: var(--olive); }
 body[data-sync="syncing"] .pm-sync{ color: var(--terra); }
+
+/* ============================================================
+   MOBILE PASS  — consolidated responsive fixes for the whole app
+   Builds on top of the per-component @media rules above. Hits the
+   gaps: input zoom on iOS, modal full-screen, masthead collapse,
+   touch-target sizing, profile dropdown positioning, etc.
+   ============================================================ */
+
+/* ── iOS zoom prevention: text inputs need ≥16px to not auto-zoom ── */
+@media (max-width: 720px){
+  input[type="text"], input[type="email"], input[type="search"],
+  input[type="tel"], input[type="url"], input[type="number"],
+  textarea, select,
+  .tb-search, .tb-select, .sc-code-row input,
+  .modal-field input, .modal-field textarea,
+  [data-friend-input], [data-share-link]{
+    font-size: 16px;
+  }
+}
+
+/* ── Modals fill the screen on phones (no tiny boxes) ── */
+@media (max-width: 640px){
+  .modal-backdrop{
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal,
+  .modal-spin,
+  .modal-place,
+  .modal-wide{
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    max-height: none;
+    overflow-y: auto;
+    padding: 56px 18px 32px;
+    border: 0;
+  }
+  .modal-close{
+    top: 14px; right: 14px;
+    width: 36px; height: 36px;
+    background: var(--paper-2);
+    border-radius: 50%;
+    font-size: 22px;
+  }
+}
+
+/* ── Masthead simplification on narrow screens ── */
+@media (max-width: 720px){
+  .masthead .signin-text{ display: none; }
+  .masthead .signin-arrow{ display: inline; }
+  .masthead .signin-chip{ padding: 8px 12px; }
+}
+@media (max-width: 560px){
+  .masthead .edition{ display: none; }
+  .masthead .left .est{ display: none; }
+  .masthead .brandlink{ letter-spacing: .14em; font-size: 10px; }
+  .masthead nav a{ font-size: 9px; letter-spacing: .14em; }
+  .masthead nav{ gap: 0 10px; }
+  .masthead .center{ order: 3; flex-basis: 100%; padding-top: 4px; }
+  .masthead{ padding: 10px 14px; gap: 6px 10px; }
+}
+
+/* ── Profile dropdown — anchor to right edge with a margin so it
+       doesn't get clipped by the viewport ── */
+@media (max-width: 560px){
+  .profile-menu{
+    right: 8px; left: 8px;
+    min-width: 0;
+    width: calc(100% - 16px);
+  }
+}
+
+/* ── Wordmark strapline: stack vertically on very small ── */
+@media (max-width: 480px){
+  .strapline{
+    flex-direction: column;
+    gap: 4px;
+  }
+  .strapline .sep{ display: none; }
+}
+
+/* ── Touch targets: rate-widget bigger hit area on phones ── */
+@media (hover: none){
+  .rate{ padding: 8px 0; }
+  .rate{ --star-sz: 22px; letter-spacing: 4px; }
+  .your-rate-row .rate{ --star-sz: 18px; letter-spacing: 3px; }
+}
+
+/* ── Cover feature: stack rate-dock and the photo on phones ── */
+@media (max-width: 720px){
+  .rate-dock{
+    padding: 18px 16px;
+  }
+  .rate-dock .yours{
+    text-align: left;
+  }
+  .feature{ padding: 32px 20px 28px; gap: 28px; }
+  .feature h1{ font-size: clamp(36px, 9vw, 56px); }
+}
+
+/* ── Pending-spin banner: stack on small ── */
+@media (max-width: 560px){
+  .pending-spin{
+    flex-direction: column; align-items: flex-start; gap: 8px;
+    padding: 12px 16px;
+  }
+  .pending-spin .ps-go{ width: 100%; text-align: center; }
+  .pending-spin .ps-x{ position: absolute; top: 6px; right: 6px; }
+  .pending-spin{ position: relative; }
+}
+
+/* ── Spin modal step-1 chip row: tighter on small ── */
+@media (max-width: 480px){
+  .cuisine-chips{ gap: 5px 6px; }
+  .cuisine-chips .chip{ padding: 6px 10px; font-size: 10px; }
+  .spin-go{ padding: 14px 18px; font-size: 12px; }
+}
+
+/* ── Restaurant detail modal: dish row reshape for tiny widths ── */
+@media (max-width: 480px){
+  .pd-dish-row{
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 10px;
+  }
+  .pd-dish-name{ grid-column: 1 / -1; }
+  .pd-dish-stars{ grid-row: 2; }
+  .pd-dish-avg{ grid-row: 2; }
+  .pd-dish-count{ display: none; }
+  .pd-review-when{ margin-left: 0; }
+  .pd-review-head{ font-size: 10px; gap: 6px 10px; }
+  .pd-review-note{ font-size: 14px; }
+  .pd-header h2{ font-size: clamp(28px, 7vw, 36px); }
+  .pd-actions{ flex-direction: column; gap: 8px; }
+}
+
+/* ── Activity feed: keep avatar small, never let the name wrap weird ── */
+@media (max-width: 480px){
+  .af-item{ padding: 14px 0; }
+  .af-line{ font-size: 14px; }
+  .af-place{ font-size: 16px; }
+  .af-meta{ font-size: 9px; letter-spacing: .1em; gap: 4px 10px; }
+}
+
+/* ── Following row chips: wrap nicer ── */
+@media (max-width: 560px){
+  .follow-row{ gap: 8px; }
+  .follow-row .fr-handle{ font-size: 10px; }
+  .follow-row .fr-av{ width: 20px; height: 20px; font-size: 11px; }
+  .follow-row .fr-count{ flex-basis: 100%; }
+}
+
+/* ── Share grid: already 1fr at 720px. Tighten copy on phones ── */
+@media (max-width: 480px){
+  .share-card{ padding: 20px 16px; }
+  .share-card h3{ font-size: 22px; }
+  .sc-code-row{ flex-direction: column; }
+  .sc-btn{ width: 100%; }
+}
+
+/* ── Browse-home: cards already collapse to 1col. Tighten spacing ── */
+@media (max-width: 480px){
+  .browse-home{ padding: 20px 0 8px; }
+  .browse-home .bh-h3{ font-size: clamp(24px, 8vw, 32px); line-height: 1.04; }
+  .browse-home .bh-sub{ font-size: 15px; margin-bottom: 28px; }
+  .bh-section{ margin-bottom: 24px; }
+  .bh-cta{ flex-direction: column; gap: 10px; padding: 18px 0 4px; }
+  .bh-cta-btn{ width: 100%; }
+}
+
+/* ── Logbook header: title shrinks, filters wrap cleanly ── */
+@media (max-width: 560px){
+  .logbook-head{ gap: 14px; }
+  .logbook-head h2{ font-size: 24px; max-width: 100%; }
+  .logbook-head .filters{
+    gap: 10px 14px;
+    width: 100%;
+  }
+  .logbook-head .filters a{ font-size: 10px; letter-spacing: .14em; }
+  .add-place-btn, .spin-btn{ font-size: 10px; padding: 6px 10px; }
+}
+
+/* ── Toolbar: keep search wide; selects two-up on phones ── */
+@media (max-width: 560px){
+  .toolbar{ gap: 8px; }
+  .tb-search{ flex-basis: 100%; }
+  .tb-select{ flex: 1 1 calc(50% - 4px); min-width: 0; font-size: 10px; }
+  .tb-print{ width: auto; font-size: 10px; padding: 9px 12px; }
+}
+
+/* ── End-foot: already stacks at 960. Bigger taps on phones ── */
+@media (max-width: 720px){
+  .end-foot{ padding: 22px 16px 28px; }
+  .end-foot a{ padding: 4px 0; display: inline-block; }
+}
+
+/* ── Attribution + folios on phones ── */
+@media (max-width: 720px){
+  .attribution{ padding: 0 20px 28px; font-size: 9px; letter-spacing: .12em; }
+}
+
+/* ── Stats grid: 2-up on phones to keep numbers readable ── */
+@media (max-width: 640px){
+  .stats-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@media (max-width: 380px){
+  .stats-grid{ grid-template-columns: 1fr; }
+}
+
+/* ── Modal field bigger tap targets on phones ── */
+@media (max-width: 640px){
+  .modal-field input, .modal-field textarea{
+    padding: 12px 0;
+  }
+  .modal-cta{
+    padding: 16px 22px;
+    font-size: 12px;
+  }
+}
+
+/* ── Make sure log-cards and grid items respect available width ── */
+@media (max-width: 480px){
+  .log-card{ min-width: 0; }
+  .log-card .name-btn{ font-size: 20px; }
+  .log-card.text-led{ padding: 18px 16px 14px; }
+  .log-card.has-photo .card-body{ padding: 14px 16px 16px; }
+  .grid-more{ font-size: 10px; gap: 6px 12px; padding: 20px 0 4px; }
+}
+
+/* ── Diary timeline: even tighter on tiny screens ── */
+@media (max-width: 380px){
+  .diary-entry{ grid-template-columns: 48px 1fr; gap: 12px; padding: 18px 0; }
+  .diary-date{ padding-right: 8px; }
+  .diary-date .dd-day{ font-size: 26px; }
+  .diary-date .dd-mo, .diary-date .dd-wd{ font-size: 8px; letter-spacing: .12em; }
+  .diary-name{ font-size: 21px; }
+  .diary-note{ font-size: 15px; padding-left: 10px; }
+  .diary-actions{ gap: 14px; font-size: 9px; }
+}
+
+/* ── How-it-works TOC items already adapt, tweak on smallest ── */
+@media (max-width: 380px){
+  .toc-item{ grid-template-columns: 28px 1fr; gap: 10px; }
+  .toc-item .thumb{ display: none; }
+  .toc-item .pg{ display: none; }
+  .toc-item h3{ font-size: 18px; }
+  .toc-item .dek{ font-size: 14px; }
+}
+
+/* ── Prevent horizontal scroll from rogue children ── */
+html, body{ max-width: 100%; }
+.feature-text, .contents-list, .browse-home, .activity-feed, .log-grid{
+  min-width: 0;
+}
 
 /* ============ PRINT / PDF ============ */
 @media print{
