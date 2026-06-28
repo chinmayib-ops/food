@@ -657,33 +657,129 @@ function placeCard(p){
   const onWish=Wishlist.has(p.id);
   const recs=recommenders(p.id);
   const photo=e?.photo;
-  const sqStyle = photo ? ` style="background-image:url(${photo});background-size:cover;background-position:center"` : '';
   const aggLine = (state.tab==='friends')
     ? `<span class="agg"><b>★ ${fmt(ag.avg)}</b> · ${Friends.all().filter(f=>friendRating(f,p.id)).length} friend(s)</span>`
     : (ag.count?`<span class="agg"><b>★ ${fmt(ag.avg)}</b> · ${ag.count} rating${ag.count===1?'':'s'}</span>`
-                :`<span class="agg unrated">Unrated · be the first</span>`);
-  return `
-  <div class="log-card${photo?' has-photo':''}" data-place-id="${p.id}">
-    <div class="photo-sq"${sqStyle}>
-      <button class="heart" data-like type="button">♡</button>
-      <button class="wish-btn${onWish?' on':''}" data-wish="${p.id}" type="button" title="Want to try">${onWish?'★ Wishlisted':'☆ Wishlist'}</button>
-      <span class="meal-label">${esc(p.dish||'A Bengaluru plate')}</span>
+                :`<span class="agg unrated">Unrated</span>`);
+
+  // Photo block: ONLY render when there's a real photo. No more empty gradients.
+  const photoBlock = photo ? `
+    <div class="card-photo" style="background-image:url(${photo})">
       ${recs.length?`<span class="rec-badge">◦ ${esc(recs[0])} recommends</span>`:''}
-    </div>
-    <button type="button" class="name name-btn" data-place-detail="${esc(p.id)}">${esc(p.name)}</button>
-    <div class="hood">${esc(p.hood)}${p.cuisine?` · <span class="cz">${esc(p.cuisine)}</span>`:''}</div>
-    <div class="row">${aggLine}${e&&e.superRated?'<span class="super-badge" title="Adventurous Visit — spun &amp; verified">✦ Adventurous</span>':''}</div>
-    ${e&&e.dishes&&e.dishes.length?`<div class="dish-list">${e.dishes.map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
-    ${e&&e.note?`<div class="card-note">“${esc(e.note)}”</div>`:''}
-    ${e&&e.visitedAt?`<div class="card-date">Visited ${esc(new Date(e.visitedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</div>`:''}
-    <div class="your-rate-row">
-      <span class="lbl">${mine?'Your rating · <b>'+fmt(mine)+'/5</b>':'Your rating'}</span>
-      <div class="rate" data-max="5" data-value="${mine}" data-place-id="${p.id}" tabindex="0" role="slider" aria-label="Rate ${esc(p.name)}">
-        <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(mine/5)*100}%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+    </div>` : '';
+
+  // Wishlist button only when relevant: tab-aware
+  const wishBtn = (state.tab==='wishlist' || onWish)
+    ? `<button class="card-wish${onWish?' on':''}" data-wish="${p.id}" type="button">${onWish?'★ Wishlisted':'☆ Wishlist'}</button>`
+    : `<button class="card-wish ghost" data-wish="${p.id}" type="button">☆ Wishlist</button>`;
+
+  return `
+  <div class="log-card${photo?' has-photo':' text-led'}" data-place-id="${p.id}">
+    ${photoBlock}
+    <div class="card-body">
+      <div class="card-eyebrow">${esc(p.hood)}${p.cuisine?` · <span class="cz">${esc(p.cuisine)}</span>`:''}</div>
+      <button type="button" class="name name-btn" data-place-detail="${esc(p.id)}">${esc(p.name)}</button>
+      ${p.dish?`<div class="card-dish-tag">${esc(p.dish)}</div>`:''}
+      <div class="row">${aggLine}${e&&e.superRated?'<span class="super-badge" title="Adventurous Visit — spun &amp; verified">✦ Adventurous</span>':''}${!photo&&recs.length?`<span class="rec-inline">◦ ${esc(recs[0])} recommends</span>`:''}</div>
+      ${e&&e.note?`<div class="card-note">"${esc(e.note)}"</div>`:''}
+      ${e&&e.dishes&&e.dishes.length?`<div class="dish-list">${e.dishes.map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}
+      ${e&&e.visitedAt?`<div class="card-date">Visited ${esc(new Date(e.visitedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</div>`:''}
+      <div class="your-rate-row">
+        <span class="lbl">${mine?'Your rating · <b>'+fmt(mine)+'/5</b>':'Your rating'}</span>
+        <div class="rate" data-max="5" data-value="${mine}" data-place-id="${p.id}" tabindex="0" role="slider" aria-label="Rate ${esc(p.name)}">
+          <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(mine/5)*100}%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button type="button" class="card-edit" data-edit-entry="${p.id}">${e?'Edit note &amp; date':'Add note &amp; photo'}</button>
+        ${wishBtn}
       </div>
     </div>
-    <button type="button" class="card-edit" data-edit-entry="${p.id}">${e?'Edit note / photo / date':'Add note, photo & date'}</button>
   </div>`;
+}
+
+/* ============================================================
+   Calendar timeline view — for "Rated by you" tab
+   Groups entries by month, dateline left rail, typography-led.
+   ============================================================ */
+function renderDiary(list){
+  const grid=document.querySelector('[data-log-grid]');
+  if(!grid) return;
+
+  const groups={};
+  list.forEach(p=>{
+    const e=Entries.get(p.id);
+    if(!e||(!e.rating&&!(e.note||'').trim())) return;
+    const when=e.visitedAt||e.updatedAt||e.createdAt;
+    if(!when) return;
+    const d=new Date(when); if(isNaN(d)) return;
+    const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!groups[k]) groups[k]={ date:d, items:[] };
+    groups[k].items.push({ place:p, entry:e, when:d });
+  });
+
+  const monthKeys=Object.keys(groups).sort().reverse();
+  monthKeys.forEach(k=>groups[k].items.sort((a,b)=>b.when-a.when));
+
+  if(!monthKeys.length){
+    grid.innerHTML='';
+    document.querySelector('[data-log-empty]').hidden=false;
+    document.querySelector('[data-log-empty]').innerHTML=
+      'Nothing rated yet — switch to <b>All places</b> and start tasting.';
+    grid.hidden=true;
+    return;
+  }
+  document.querySelector('[data-log-empty]').hidden=true;
+  grid.hidden=false;
+
+  grid.innerHTML=monthKeys.map(k=>{
+    const g=groups[k];
+    const monthLabel=g.date.toLocaleString(undefined,{month:'long',year:'numeric'}).toUpperCase();
+    return `
+      <section class="diary-month">
+        <header class="diary-month-head">
+          <h3>${esc(monthLabel)}</h3>
+          <span class="diary-month-count">${g.items.length} plate${g.items.length===1?'':'s'}</span>
+        </header>
+        ${g.items.map(diaryEntry).join('')}
+      </section>`;
+  }).join('');
+
+  grid.querySelectorAll('.rate').forEach(r=>initRating(r));
+}
+
+function diaryEntry(it){
+  const p=it.place, e=it.entry, d=it.when;
+  const onWish=Wishlist.has(p.id);
+  const recs=recommenders(p.id);
+  const photo=e.photo;
+  return `
+    <article class="diary-entry">
+      <div class="diary-date">
+        <span class="dd-day">${d.getDate()}</span>
+        <span class="dd-mo">${d.toLocaleString(undefined,{month:'short'}).toUpperCase()}</span>
+        <span class="dd-wd">${d.toLocaleString(undefined,{weekday:'short'}).toUpperCase()}</span>
+      </div>
+      <div class="diary-body">
+        <div class="diary-eyebrow">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
+        <button type="button" class="diary-name" data-place-detail="${esc(p.id)}">${esc(p.name)}</button>
+        ${p.dish?`<div class="diary-known-for">Known for: <em>${esc(p.dish)}</em></div>`:''}
+        ${e.rating?`<div class="diary-rating">
+          <span class="rating"><span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(e.rating/5)*100}%">★★★★★</span></span>
+          <span class="diary-rating-num">★ ${fmt(e.rating)} / 5</span>
+          ${e.superRated?'<span class="super-badge inline">✦ Adventurous</span>':''}
+        </div>`:''}
+        ${photo?`<div class="diary-photo" style="background-image:url(${photo})"></div>`:''}
+        ${e.note?`<div class="diary-note">"${esc(e.note)}"</div>`:''}
+        ${e.dishes&&e.dishes.length?`<div class="dish-list">${e.dishes.map(dd=>`<span class="dish-pill"><b>${esc(dd.name)}</b> ${fmt(dd.rating)}★</span>`).join('')}</div>`:''}
+        ${recs.length?`<div class="diary-rec">Also recommended by <b>${esc(recs[0])}</b>.</div>`:''}
+        <div class="diary-actions">
+          <button type="button" data-edit-entry="${esc(p.id)}">Edit</button>
+          <button type="button" data-place-detail="${esc(p.id)}">View page</button>
+          <button type="button" data-wish="${esc(p.id)}">${onWish?'★ On wishlist':'☆ Wishlist'}</button>
+        </div>
+      </div>
+    </article>`;
 }
 
 function renderLogbook(){
@@ -708,8 +804,14 @@ function renderLogbook(){
       : state.tab==='friends' ? 'No friend ratings yet — add a code in <b>Friends &amp; Sharing</b> below.'
       : 'No places yet.';
     empty.innerHTML=msg;
+  } else if (state.tab === 'mine') {
+    // Calendar timeline view for your rated places
+    grid.classList.add('diary-mode');
+    renderDiary(list);
+    return;
   } else {
     empty.hidden=true; grid.hidden=false;
+    grid.classList.remove('diary-mode');
     // Render cap: with ~7k places in the catalogue, painting them all
     // freezes the browser. Show the first N; surface a "more" footer.
     const CAP = state.showAll ? Infinity : 120;

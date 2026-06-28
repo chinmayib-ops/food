@@ -1806,6 +1806,249 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
 .grid-more .link-btn{ font-size: 11px; letter-spacing: .18em; }
 
 /* ============================================================
+   REDESIGNED PLACE CARD  (no empty photo placeholders)
+   The old .photo-sq + gradients are no longer used by placeCard()
+   — only rendered now when a real photo exists (.card-photo).
+   ============================================================ */
+.log-card.text-led{
+  padding: 24px 22px 18px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  transition: border-color .2s, transform .25s;
+}
+.log-card.text-led:hover{
+  border-color: var(--ink);
+  transform: translateY(-2px);
+}
+.log-card.has-photo{
+  background: var(--paper);
+  border: 1px solid var(--rule);
+}
+.log-card .card-photo{
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+.log-card .card-photo .rec-badge{
+  position: absolute; left: 10px; bottom: 10px;
+  background: rgba(26,22,17,.78);
+  color: var(--cream);
+  padding: 4px 10px;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.log-card.has-photo .card-body{
+  padding: 18px 22px 18px;
+}
+
+.log-card .card-eyebrow{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--terra); margin-bottom: 6px;
+}
+.log-card .card-eyebrow .cz{ color: var(--terra-dk); }
+
+.log-card .name-btn,
+.log-card.text-led .name,
+.log-card.has-photo .card-body .name{
+  font-family: var(--ff-disp);
+  font-size: 22px; line-height: 1.05;
+  color: var(--ink);
+  margin: 0 0 4px !important;   /* override the legacy .log-card .name margin */
+  display: block;
+  text-align: left;
+  background: none; border: 0; padding: 0;
+}
+.log-card .card-dish-tag{
+  font-family: var(--ff-body); font-style: italic;
+  font-size: 14px; color: var(--ink-soft);
+  margin: 4px 0 12px;
+}
+
+.log-card .row .rec-inline{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--terra);
+}
+
+.log-card .card-actions{
+  display: flex; gap: 14px; align-items: baseline;
+  margin-top: 12px;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.log-card .card-actions button{
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--terra);
+}
+.log-card .card-actions button:hover{
+  color: var(--terra-dk); text-decoration: underline; text-underline-offset: 3px;
+}
+.log-card .card-actions .card-wish.ghost{ color: var(--ink-soft); }
+.log-card .card-actions .card-wish.on{ color: var(--terra); font-weight: 500; }
+
+/* The old .hood block is replaced by .card-eyebrow; same for .name → .name-btn.
+   .your-rate-row, .card-note, .card-date, .dish-list keep their existing
+   styles — they live inside .card-body now. */
+
+/* ============================================================
+   CALENDAR TIMELINE  ("Rated by you" tab)
+   ============================================================ */
+.log-grid.diary-mode{
+  display: block;            /* override the 4-col grid */
+}
+
+.diary-month{
+  margin-bottom: 56px;
+}
+.diary-month-head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+  margin-bottom: 24px;
+}
+.diary-month-head h3{
+  font-family: var(--ff-disp);
+  font-size: clamp(28px, 3.6vw, 44px);
+  line-height: 1; letter-spacing: -.015em;
+  margin: 0; color: var(--ink);
+}
+.diary-month-count{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--terra);
+}
+
+.diary-entry{
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 30px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.diary-entry:last-child{ border-bottom: 0; }
+
+.diary-date{
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  border-right: 1px solid var(--rule);
+  padding-right: 22px;
+  padding-top: 2px;
+}
+.diary-date .dd-day{
+  font-family: var(--ff-disp);
+  font-size: 48px; line-height: 1;
+  color: var(--ink); letter-spacing: -.02em;
+}
+.diary-date .dd-mo{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; color: var(--terra);
+  margin-top: 6px;
+}
+.diary-date .dd-wd{
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: .14em; color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.diary-body{ min-width: 0; }
+.diary-eyebrow{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--terra); margin-bottom: 6px;
+}
+.diary-name{
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: left;
+  font-family: var(--ff-disp);
+  font-size: clamp(24px, 2.8vw, 32px);
+  line-height: 1.04; letter-spacing: -.01em;
+  margin: 0 0 6px; display: block;
+  transition: color .15s;
+}
+.diary-name:hover{ color: var(--terra); }
+
+.diary-known-for{
+  font-family: var(--ff-body); font-style: italic;
+  font-size: 14px; color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+.diary-known-for em{
+  font-style: italic; color: var(--ink); font-weight: 500;
+}
+
+.diary-rating{
+  display: flex; align-items: center; gap: 12px;
+  margin: 6px 0 12px;
+  flex-wrap: wrap;
+}
+.diary-rating .rating{
+  font-size: 18px; letter-spacing: 3px;
+}
+.diary-rating .rating .rate-bg{ color: var(--rule); }
+.diary-rating .rating .rate-fg{ color: var(--terra); top: 0; }
+.diary-rating-num{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; color: var(--terra-dk);
+  text-transform: uppercase; font-weight: 500;
+}
+
+.diary-photo{
+  aspect-ratio: 16 / 9;
+  max-width: 420px;
+  background-size: cover;
+  background-position: center;
+  margin: 12px 0;
+  border: 1px solid var(--rule);
+}
+
+.diary-note{
+  font-family: var(--ff-body); font-style: italic;
+  font-size: 17px; line-height: 1.55;
+  color: var(--ink);
+  margin: 12px 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--terra);
+  max-width: 60ch;
+}
+
+.diary-rec{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 10px 0;
+}
+.diary-rec b{ color: var(--ink); font-weight: 500; }
+
+.diary-actions{
+  display: flex; gap: 22px; align-items: baseline;
+  margin-top: 14px;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.diary-actions button{
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--terra);
+}
+.diary-actions button:hover{
+  color: var(--terra-dk); text-decoration: underline; text-underline-offset: 3px;
+}
+
+@media (max-width: 720px){
+  .diary-entry{ grid-template-columns: 64px 1fr; gap: 16px; }
+  .diary-date{ padding-right: 12px; }
+  .diary-date .dd-day{ font-size: 32px; }
+  .diary-photo{ max-width: 100%; }
+}
+@media (max-width: 480px){
+  .diary-month{ margin-bottom: 36px; }
+  .diary-month-head h3{ font-size: 26px; }
+}
+
+/* ============================================================
    FOLLOWING ROW  (compact chips above the activity feed)
    ============================================================ */
 .follow-row{
