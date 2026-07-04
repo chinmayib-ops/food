@@ -1803,7 +1803,41 @@ function initActions(){
 }
 
 /* ---------- boot ---------- */
-function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); }
+/* ---------- FX: scroll-reveal + pointer tilt (no libs) ---------- */
+const FX=(()=>{
+  const okMotion=matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  const okHover=matchMedia('(hover: hover)').matches;
+  const io=('IntersectionObserver' in window)&&okMotion
+    ? new IntersectionObserver(es=>es.forEach(e=>{
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      }),{ threshold:.08 })
+    : null;
+  const SEL='.log-card,.bh-card,.share-card,.toc-item,.stat-cell,.af-item,.diary-entry,.list-card';
+  function scan(){
+    if(!io) return;
+    document.querySelectorAll(SEL).forEach(el=>{
+      if(el.dataset.fx) return; el.dataset.fx='1';
+      el.classList.add('reveal'); io.observe(el);
+    });
+  }
+  // NRG-style tilt — delegated, so re-rendered cards keep working
+  if(okHover&&okMotion){
+    const TILT='.log-card,.bh-card,.share-card,.list-card,.photo-frame';
+    document.addEventListener('pointermove',e=>{
+      const el=e.target.closest(TILT); if(!el) return;
+      const r=el.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      el.style.transform=`perspective(700px) rotateX(${(-y*4).toFixed(2)}deg) rotateY(${(x*5).toFixed(2)}deg) translateY(-2px)`;
+    },{ passive:true });
+    document.addEventListener('pointerout',e=>{
+      const el=e.target.closest(TILT);
+      if(el&&!el.contains(e.relatedTarget)) el.style.transform='';
+    });
+  }
+  return { scan };
+})();
+
+function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); FX.scan(); }
 
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.rate-dock .rate').forEach(r=>initRating(r));
