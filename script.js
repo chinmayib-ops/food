@@ -1026,10 +1026,10 @@ function renderActivityFeed(){
 
   wrap.innerHTML=items.slice(0,30).map(it=>{
     const p=Places.byId(it.placeId);
-    if(!p) return '';
+    const pName=p?p.name:it.placeId.replace(/-/g,' ');
     const init=(it.friend.name||'?').trim().charAt(0).toUpperCase();
     const action=it.rating?`rated`:`logged`;
-    const placeBtn=`<button type="button" class="af-place" data-place-detail="${esc(it.placeId)}">${esc(p.name)}</button>`;
+    const placeBtn=p?`<button type="button" class="af-place" data-place-detail="${esc(it.placeId)}">${esc(pName)}</button>`:`<span class="af-place">${esc(pName)}</span>`;
     return `<article class="af-item">
       <span class="af-av">${esc(init)}</span>
       <div class="af-body">
@@ -1041,7 +1041,7 @@ function renderActivityFeed(){
         <div class="af-meta">
           <span class="af-handle">@${esc(it.friend.handle)}</span>
           ${it.when?`<span class="af-when">${esc(timeAgo(it.when))}</span>`:''}
-          <span class="af-hood">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</span>
+          ${p?`<span class="af-hood">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</span>`:''}
         </div>
         ${it.note?`<div class="af-note">"${esc(it.note)}"</div>`:''}
         ${it.dishes&&it.dishes.length?`<div class="af-dishes">${it.dishes.slice(0,4).map(d=>`<span class="dish-pill"><b>${esc(d.name)}</b> ${fmt(d.rating)}★</span>`).join('')}</div>`:''}

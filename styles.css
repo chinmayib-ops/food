@@ -89,6 +89,46 @@ body::after{
   .masthead .center.open .menu-close{ display: block; }
 
   .dbl-rule{ display: none; }
+
+  /* ---- mobile app UX: bigger fonts, more breathing room ---- */
+  body{ font-size: 17px; line-height: 1.55; }
+  .feature h1 .small{ font-size: .48em; line-height: 1.35; }
+  .standfirst{ font-size: 18px; line-height: 1.5; }
+  .logbook-head h2{ font-size: clamp(30px, 9vw, 44px); }
+  .logbook-head .lbl,
+  .stats-head .lbl,
+  .lists-head .lbl,
+  .contents-head .label{ font-size: 12px; letter-spacing: .22em; }
+  .logbook-head .filters{ font-size: 12px; gap: 10px 14px; }
+  .stats-head h2,
+  .lists-head h2,
+  .contents-head h2{ font-size: clamp(28px, 8vw, 40px); }
+  .toc-item h3{ font-size: 22px; }
+  .toc-item .dek{ font-size: 15px; line-height: 1.45; }
+  .toc-item .byline{ font-size: 11px; }
+  .toolbar{ gap: 10px; }
+  .tb-search{ font-size: 16px; padding: 12px 14px; }
+  .tb-select{ font-size: 14px; padding: 10px 12px; }
+  .sc-sub{ font-size: 15px; line-height: 1.45; }
+  .share-card h3{ font-size: 22px; }
+  .modal-sub{ font-size: 16px; line-height: 1.45; }
+  .modal h2{ font-size: clamp(28px, 8vw, 38px); }
+  .modal-cta{ font-size: 14px; padding: 16px 28px; }
+  .modal-field input,
+  .modal-field textarea,
+  .modal-field select{ font-size: 16px; }
+  .af-item{ padding: 14px 0; }
+  .af-line{ font-size: 16px; }
+  .af-meta{ font-size: 12px; }
+  .af-note{ font-size: 15px; }
+  .empty-state{ font-size: 17px; line-height: 1.5; }
+
+  /* sticky masthead for app feel */
+  .masthead{
+    position: sticky; top: 0; z-index: 50;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+  }
 }
 
 .mono{ font-family: var(--ff-mono); font-weight:400; letter-spacing:.05em; }
