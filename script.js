@@ -12,6 +12,7 @@ const KEY_RATINGS  = 'be:ratings';   // legacy (v1) — migrated
 const KEY_PLACES   = 'be:places';
 const KEY_WISHLIST = 'be:wishlist';
 const KEY_FRIENDS  = 'be:friends';
+const KEY_PENDING_FRIEND = 'be:pendingFriend';
 
 const FEATURED_ID = 'brahmins-coffee-bar';
 
@@ -255,6 +256,7 @@ const Sync = (function(){
       localStorage.setItem(KEY_FRIENDS, JSON.stringify([...keep,...objs]));
       ready=true; setStatus('cloud');
       document.dispatchEvent(new CustomEvent('data:change'));
+      processPendingFriend();
     }catch(err){ console.error('[Sync.pull] failed:', err); setStatus('cloud'); }
   }
 
@@ -296,6 +298,16 @@ const Sync = (function(){
     if(!cloud()||!me) return;
     const f=loadJSON(KEY_FRIENDS,[]).find(x=>x.handle===handle&&x.cloud);
     if(f&&f.uid) await C.DB.removeFriend(me.id, f.uid);
+  }
+
+  /* a #addfriend= link opened before sign-in stashes its handle here;
+     once a session lands, the next successful pull() picks it up. */
+  async function processPendingFriend(){
+    if(!cloud()||!me) return;
+    const h=localStorage.getItem(KEY_PENDING_FRIEND);
+    if(!h) return;
+    localStorage.removeItem(KEY_PENDING_FRIEND);
+    await addFriendByHandle(h);
   }
 
   function onRealtime(payload){
@@ -1119,16 +1131,35 @@ function shareCode(){
   return b64encode(JSON.stringify({ v:2, n:p.name, h:p.handle||slugify(p.name),
     e:slimEntries(), pl:Places.custom(), wl:Wishlist.all() }));
 }
-function shareLink(){ const c=shareCode(); return c?`${location.origin}${location.pathname}#friend=${c}`:null; }
+function shareLink(){
+  // cloud users get a tiny live-follow link (handle only, always current);
+  // offline users get the full data-snapshot code since there's no server to look up.
+  if(Sync.isCloud()&&Sync.hasSession()){
+    const p=Profile.get(); if(!p||!p.handle) return null;
+    return `${location.origin}${location.pathname}#addfriend=${encodeURIComponent(p.handle)}`;
+  }
+  const c=shareCode(); return c?`${location.origin}${location.pathname}#friend=${c}`:null;
+}
 function renderShare(){
   const i=document.querySelector('[data-share-link]'); const h=document.querySelector('[data-share-hint]');
   const l=shareLink();
-  if(l){ i.value=l; if(h) h.textContent='Anyone who opens this link adds your logbook to their Friends feed.'; }
+  const live=Sync.isCloud()&&Sync.hasSession();
+  if(l){ i.value=l; if(h) h.textContent=live
+      ? 'Anyone signed in who opens this link follows you live — always up to date.'
+      : 'Anyone who opens this link adds your logbook to their Friends feed.'; }
   else { i.value='Sign in to generate your link'; if(h) h.textContent='You need a profile before you can share.'; }
 }
 function importCode(raw){
   if(!raw) return;
-  let code=raw.trim(); const m=code.match(/#friend=([^&\s]+)/); if(m) code=m[1];
+  let code=raw.trim();
+  const af=code.match(/#addfriend=([^&\s]+)/);
+  if(af){
+    const h=decodeURIComponent(af[1]);
+    if(Sync.isCloud()&&Sync.hasSession()){ Sync.addFriendByHandle(h); }
+    else { localStorage.setItem(KEY_PENDING_FRIEND,h); Toast.show('Sign in to follow <em>@'+esc(h)+'</em>'); openModal('signin'); }
+    return;
+  }
+  const m=code.match(/#friend=([^&\s]+)/); if(m) code=m[1];
   let d; try{ d=JSON.parse(b64decode(code)); }catch{ Toast.show('That code could not be read — check &amp; retry'); return; }
   if(!d||!d.n){ Toast.show('That code is missing a profile'); return; }
   const me=Profile.get();
@@ -1862,7 +1893,7 @@ function navigateTo(page){
 }
 function routeFromHash(){
   const h=location.hash.slice(1)||'home';
-  if(h.startsWith('friend=')) return;
+  if(h.startsWith('friend=')||h.startsWith('addfriend=')) return;
   if(isMobile()) navigateTo(h);
   else {
     // desktop: scroll to section
@@ -1898,10 +1929,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   syncToolbarUI(); renderAll();
   SpinUI.init();
   Sync.boot();
-  if(location.hash.startsWith('#friend=')){
-    const code=location.hash.slice('#friend='.length);
+  if(location.hash.startsWith('#friend=')||location.hash.startsWith('#addfriend=')){
+    const raw=location.hash;
     history.replaceState(null,'',location.pathname+location.search);
-    setTimeout(()=>importCode(code),500);
+    setTimeout(()=>importCode(raw),500);
   }
   if(isMobile()) routeFromHash();
   else document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
