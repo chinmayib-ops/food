@@ -1840,6 +1840,7 @@ const FX=(()=>{
 function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); FX.scan(); }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js');
   document.querySelectorAll('.rate-dock .rate').forEach(r=>initRating(r));
   initModals(); initProfileMenu(); initToolbar(); initActions();
   syncToolbarUI(); renderAll();
