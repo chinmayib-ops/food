@@ -1794,10 +1794,17 @@ function initActions(){
     if(t.hasAttribute('data-tab')){ e.preventDefault(); state.tab=t.dataset.tab; state.showAll=false; syncToolbarUI(); renderLogbook();
       location.hash='logbook'; return; }
 
-    if(t.hasAttribute('data-nav')){ e.preventDefault(); location.hash=t.dataset.nav; return; }
+    if(t.hasAttribute('data-nav')){ e.preventDefault();
+      if(isMobile()){ location.hash=t.dataset.nav; }
+      else { const el=document.getElementById(t.dataset.nav); if(el) el.scrollIntoView({behavior:'smooth'}); }
+      return; }
 
     const href=t.getAttribute('href');
-    if(href&&href.length>1&&href.startsWith('#')){ e.preventDefault(); location.hash=href.slice(1); }
+    if(href&&href.length>1&&href.startsWith('#')){
+      e.preventDefault();
+      if(isMobile()){ location.hash=href.slice(1); }
+      else { const el=document.getElementById(href.slice(1)); if(el) el.scrollIntoView({behavior:'smooth'}); }
+    }
   });
   const fi=document.querySelector('[data-friend-input]');
   fi && fi.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); importCode(fi.value); } });
@@ -1840,20 +1847,43 @@ const FX=(()=>{
 
 function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); FX.scan(); }
 
-/* ---------- page router ---------- */
+/* ---------- page router (mobile only) ---------- */
 const PAGES = ['home','logbook','stats','friends','info'];
+const isMobile = () => window.innerWidth <= 720;
+
 function navigateTo(page){
   if(!PAGES.includes(page)) page='home';
   document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
   document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===page));
   window.scrollTo(0,0);
+  // close hamburger menu
+  const c=document.querySelector('.masthead .center'); if(c) c.classList.remove('open');
 }
 function routeFromHash(){
   const h=location.hash.slice(1)||'home';
-  if(h.startsWith('friend=')) return; // handled separately
-  navigateTo(h);
+  if(h.startsWith('friend=')) return;
+  if(isMobile()) navigateTo(h);
+  else {
+    // desktop: scroll to section
+    const el=document.getElementById(h);
+    if(el) el.scrollIntoView({behavior:'smooth'});
+  }
 }
 window.addEventListener('hashchange',routeFromHash);
+
+// hamburger
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-hamburger]')){
+    const c=document.querySelector('.masthead .center'); if(c) c.classList.add('open');
+  }
+  if(e.target.closest('[data-menu-close]')){
+    const c=document.querySelector('.masthead .center'); if(c) c.classList.remove('open');
+  }
+});
+// on resize from mobile→desktop, show all pages
+window.addEventListener('resize',()=>{
+  if(!isMobile()) document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
+});
 
 document.addEventListener('DOMContentLoaded',()=>{
   if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js');
@@ -1867,7 +1897,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     history.replaceState(null,'',location.pathname+location.search);
     setTimeout(()=>importCode(code),500);
   }
-  routeFromHash();
+  if(isMobile()) routeFromHash();
+  else document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
 });
 document.addEventListener('profile:change',renderAll);
 document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });

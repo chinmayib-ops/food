@@ -45,11 +45,51 @@ body::after{
 
 ::selection{ background: var(--ink); color: var(--paper); }
 
-/* ============ PAGE ROUTING ============ */
-.page{ display: none; }
-.page.active{ display: block; }
-.masthead nav a[data-nav].active{ color: var(--terra); }
-.dbl-rule{ display: none; }
+/* ============ PAGE ROUTING (mobile/app only) ============ */
+.page{ display: block; }
+.hamburger{ display: none; }
+.menu-close{ display: none; }
+/* desktop: hide mobile-only nav items */
+.masthead nav [data-nav="home"]{ display: none; }
+.masthead nav [data-nav="info"]{ display: none; }
+
+@media (max-width: 720px){
+  .page{ display: none; }
+  .page.active{ display: block; }
+  .masthead nav a[data-nav].active{ color: var(--terra); }
+  /* show all nav items on mobile */
+  .masthead nav [data-nav="home"]{ display: block; }
+  .masthead nav [data-nav="info"]{ display: block; }
+
+  /* hamburger */
+  .hamburger{
+    display: block; background: none; border: none; cursor: pointer;
+    font-size: 22px; line-height: 1; padding: 4px 6px; color: var(--ink);
+  }
+  .masthead .center{ display: none; }
+  .masthead .center.open{
+    display: flex; flex-direction: column; align-items: flex-start;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--paper); z-index: 100;
+    padding: 72px 28px 40px; gap: 6px;
+  }
+  .masthead .center.open nav{
+    flex-direction: column; gap: 4px;
+  }
+  .masthead .center.open nav a{
+    font-size: 18px; letter-spacing: .12em; padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+    display: block; width: 100%;
+  }
+  .menu-close{
+    position: absolute; top: 16px; right: 20px;
+    background: none; border: none; font-size: 28px; cursor: pointer;
+    color: var(--ink);
+  }
+  .masthead .center.open .menu-close{ display: block; }
+
+  .dbl-rule{ display: none; }
+}
 
 .mono{ font-family: var(--ff-mono); font-weight:400; letter-spacing:.05em; }
 .upper{ text-transform: uppercase; letter-spacing:.18em;}
@@ -800,7 +840,7 @@ body::after{
   }
   .masthead .left, .masthead .right, .masthead .center{ gap: 14px;}
   .masthead nav{ gap: 0 14px;}
-  .masthead .center{ order: 3; flex-basis: 100%; justify-content: center;}
+  .masthead .center{ display: none; }
   .strapline{ gap: 8px 14px;}
   .strapline .sep{ width: 18px;}
   .log-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 18px;}
