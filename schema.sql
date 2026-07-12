@@ -174,6 +174,14 @@ alter table public.entries add column if not exists dishes jsonb;
 -- ============================================================
 -- REALTIME — broadcast entry changes so friends' feeds live-update
 -- ============================================================
-alter publication supabase_realtime add table public.entries;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'entries'
+  ) then
+    alter publication supabase_realtime add table public.entries;
+  end if;
+end $$;
 
 -- Done.
