@@ -255,7 +255,7 @@ const Sync = (function(){
       localStorage.setItem(KEY_FRIENDS, JSON.stringify([...keep,...objs]));
       ready=true; setStatus('cloud');
       document.dispatchEvent(new CustomEvent('data:change'));
-    }catch(err){ setStatus('cloud'); }
+    }catch(err){ console.error('[Sync.pull] failed:', err); setStatus('cloud'); }
   }
 
   function schedulePush(){ if(!cloud()||!me||!ready) return; clearTimeout(pushT); pushT=setTimeout(push,900); }
@@ -264,14 +264,15 @@ const Sync = (function(){
     setStatus('syncing');
     try{
       const rows=localEntryRows();
-      await C.DB.upsertEntries(rows);
+      const entriesErr=await C.DB.upsertEntries(rows);
+      if(entriesErr) console.error('[Sync.push] upsertEntries failed:', entriesErr);
       await C.DB.deleteEntriesExcept(me.id, rows.map(r=>r.place_id));
       const cps=Places.custom().map(p=>({ id:p.id,name:p.name,hood:p.hood,
         cuisine:p.cuisine||null,dish:p.dish||null,lat:p.lat??null,lng:p.lng??null,created_by:me.id }));
       if(cps.length) await C.DB.upsertPlaces(cps);
       await C.DB.setWishlist(me.id, loadJSON(KEY_WISHLIST,[]));
       setStatus('cloud');
-    }catch(err){ setStatus('cloud'); }
+    }catch(err){ console.error('[Sync.push] failed:', err); setStatus('cloud'); }
   }
 
   async function uploadPendingPhoto(placeId, dataURL){
