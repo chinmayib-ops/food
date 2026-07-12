@@ -1,14 +1,16 @@
 :root{
-  --paper:    #f6f1e6;
+  --paper:    #f7f2e8;
   --paper-2:  #efe7d5;
-  --ink:      #1a1611;
-  --ink-soft: #4a3f31;
-  --rule:     #d6cebd;
+  --ink:      #17120c;
+  --ink-soft: #463c2e;
+  --rule:     #d8d0bf;
   --terra:    #b54a2e;
   --terra-dk: #863218;
   --olive:    #6b6a48;
   --sepia:    #8e6a3d;
   --cream:    #ead7b3;
+  --brass:    #a3782f;
+  --brass-dk: #7c5a20;
   --ff-disp:  'DM Serif Display', 'Times New Roman', serif;
   --ff-body:  'Newsreader', Georgia, serif;
   --ff-mono:  'IBM Plex Mono', ui-monospace, monospace;
@@ -265,16 +267,21 @@ body::after{
 .photo{
   position: absolute; inset: 0;
   background:
-    repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 1px, transparent 1px 9px),
-    radial-gradient(ellipse at 30% 25%, rgba(255,255,255,.10), transparent 60%),
+    linear-gradient(to top, rgba(20,10,4,.55) 0%, rgba(20,10,4,.06) 34%, transparent 60%),
+    url("images/hero-dosa.png") center/cover no-repeat,
     linear-gradient(155deg, #874018 0%, #5a2811 60%, #38180a 100%);
-  box-shadow: 0 30px 60px -20px rgba(40,20,5,.35);
+  border: 1px solid var(--ink);
+  box-shadow:
+    0 34px 70px -24px rgba(40,20,5,.5),
+    inset 0 0 0 6px rgba(247,242,232,.85),
+    inset 0 0 0 7px var(--brass);
 }
 .photo .photo-label{
-  position: absolute; left: 16px; bottom: 16px; right: 16px;
+  position: absolute; left: 22px; bottom: 22px; right: 22px;
   font-family: var(--ff-mono); font-size: 10px;
   letter-spacing: .22em; text-transform: uppercase;
-  color: rgba(255,235,210,.7);
+  color: rgba(247,242,232,.92);
+  text-shadow: 0 1px 8px rgba(0,0,0,.5);
 }
 .photo-caption{
   margin-top: 14px;
@@ -292,16 +299,17 @@ body::after{
   right: -38px; top: -38px;
   width: clamp(88px, 11vw, 132px);
   height: clamp(88px, 11vw, 132px);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--brass);
   border-radius: 50%;
   background: var(--paper);
   display: grid; place-items: center;
   transform: rotate(-8deg);
   z-index: 3;
+  box-shadow: 0 6px 18px -8px rgba(40,20,5,.4);
 }
 .issue-stamp::before{
   content: ""; position: absolute; inset: 6px;
-  border: 1px solid var(--ink); border-radius: 50%;
+  border: 1px solid var(--brass); border-radius: 50%;
 }
 .issue-stamp .inner{
   font-family: var(--ff-mono);
@@ -311,7 +319,7 @@ body::after{
 .issue-stamp .inner .big{
   font-family: var(--ff-disp);
   font-size: 30px; letter-spacing: 0;
-  color: var(--terra); display: block; line-height: 1; padding: 3px 0;
+  color: var(--brass); display: block; line-height: 1; padding: 3px 0;
 }
 
 /* ============ DOUBLE-RULE SEPARATOR ============ */
@@ -319,6 +327,7 @@ body::after{
   height: 6px;
   border-top: 1px solid var(--ink);
   border-bottom: 1px solid var(--ink);
+  background: var(--brass);
   margin: 0;
 }
 
@@ -380,17 +389,23 @@ body::after{
 }
 .toc-item .thumb{
   aspect-ratio: 4/5;
-  background: linear-gradient(150deg, #6d502b, #3a2814);
+  background: linear-gradient(150deg, #6d502b, #3a2814) center/cover no-repeat;
+  background-image: url("images/step-coffee.png");
   position: relative;
+  border: 1px solid var(--rule);
+  box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 4px rgba(163,120,47,.55);
+  filter: saturate(.96);
+  transition: filter .25s;
 }
+.toc-item:hover .thumb{ filter: saturate(1.05); }
 .toc-item .thumb::after{
   content:""; position:absolute; inset:0;
-  background: repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 1px, transparent 1px 8px);
+  background: linear-gradient(to top, rgba(20,10,4,.28), transparent 55%);
 }
-.toc-item:nth-child(2) .thumb{ background: linear-gradient(150deg, #c3863a, #7a4a16);}
-.toc-item:nth-child(3) .thumb{ background: linear-gradient(150deg, #b54a2e, #5a1a0a);}
-.toc-item:nth-child(4) .thumb{ background: linear-gradient(150deg, #d2b78a, #785936);}
-.toc-item:nth-child(5) .thumb{ background: linear-gradient(150deg, #6e7c4a, #3a3d22);}
+.toc-item:nth-child(2) .thumb{ background-image: url("images/step-plate.png");}
+.toc-item:nth-child(3) .thumb{ background-image: url("images/step-wishlist.png");}
+.toc-item:nth-child(4) .thumb{ background-image: url("images/step-spot.png");}
+.toc-item:nth-child(5) .thumb{ background-image: url("images/step-friends.png");}
 
 .toc-item .body{ min-width: 0;}
 .toc-item h3{
@@ -639,6 +654,12 @@ body::after{
   aspect-ratio: 1 / 1;
   overflow: hidden;
   background: linear-gradient(135deg, #874018, #3a1810);
+  border: 1px solid var(--rule);
+  box-shadow: 0 2px 8px -4px rgba(40,20,5,.15);
+  transition: box-shadow .25s;
+}
+.log-card:hover .photo-sq{
+  box-shadow: 0 18px 34px -18px rgba(40,20,5,.45);
 }
 .log-card .photo-sq::after{
   content:""; position:absolute; inset:0;
@@ -2753,7 +2774,7 @@ body[data-sync="syncing"] .pm-sync{ color: var(--terra); }
   .tb-print{ width: auto; font-size: 10px; padding: 9px 12px; }
 }
 
-/* ── End-foot: already stacks at 960. Bigger taps on phones ── */
+/* ── End-foot: already stacks at 960. Bigger taps on phones ��─ */
 @media (max-width: 720px){
   .end-foot{ padding: 22px 16px 28px; }
   .end-foot a{ padding: 4px 0; display: inline-block; }
