@@ -29,10 +29,11 @@
   </div>
   <div class="center">
     <nav>
-      <a href="#logbook">The Logbook</a>
-      <a href="#logbook" data-tab="all">Places</a>
-      <a href="#stats">Stats</a>
-      <a href="#friends">Friends</a>
+      <a href="#home" data-nav="home">Home</a>
+      <a href="#logbook" data-nav="logbook">The Logbook</a>
+      <a href="#stats" data-nav="stats">Stats</a>
+      <a href="#friends" data-nav="friends">Friends</a>
+      <a href="#info" data-nav="info">Info</a>
       <a href="#" data-add-place>Add a place</a>
       <a href="#" class="spin-nav" data-spin-open>🫓 Spin</a>
     </nav>
@@ -63,6 +64,9 @@
 
 <!-- ============ PENDING SPIN BANNER ============ -->
 <div class="pending-spin" data-pending-spin hidden></div>
+
+<!-- ============ PAGE: HOME ============ -->
+<div class="page active" data-page="home">
 
 <!-- ============ WORDMARK ============ -->
 <header class="wordmark-band">
@@ -151,9 +155,10 @@
   </div>
 </section>
 
-<hr class="dbl-rule"/>
+</div><!-- /page:home -->
 
-<!-- ============ STATS DASHBOARD ============ -->
+<!-- ============ PAGE: STATS ============ -->
+<div class="page" data-page="stats">
 <section class="stats" id="stats">
   <div class="stats-head">
     <div class="lbl">By the numbers</div>
@@ -164,55 +169,10 @@
   </div>
 </section>
 
-<hr class="dbl-rule"/>
+</div><!-- /page:stats -->
 
-<!-- ============ HOW IT WORKS ============ -->
-<section class="contents">
-  <div class="contents-head">
-    <div class="label">The five-step issue</div>
-    <h2>Your taste, your <em>logbook</em>, your friends — synced across every device.</h2>
-    <p>Email magic-link sign-in, no password. Work through these in order; we recommend with chai.</p>
-  </div>
-  <div class="contents-list">
-    <a class="toc-item" href="#" data-signin>
-      <div class="num">01</div><div class="thumb"></div>
-      <div class="body"><h3>Create your <em>profile</em>.</h3>
-        <div class="dek">Email magic-link, no password. Pick a handle so friends can find you.</div>
-        <div class="byline">Step one · 30 seconds</div></div>
-      <div class="pg">01<span class="arrow">↗</span></div>
-    </a>
-    <a class="toc-item" href="#logbook" data-tab="all">
-      <div class="num">02</div><div class="thumb"></div>
-      <div class="body"><h3>Rate &amp; <em>note</em> a plate.</h3>
-        <div class="dek">Half-star precision, a note, a photo, the date you went — all optional.</div>
-        <div class="byline">Step two · The Logbook</div></div>
-      <div class="pg">02</div>
-    </a>
-    <a class="toc-item" href="#logbook" data-tab="wishlist">
-      <div class="num">03</div><div class="thumb"></div>
-      <div class="body"><h3>Keep a <em>wishlist</em>.</h3>
-        <div class="dek">Places you haven't been yet — tracked separately until you tick them off.</div>
-        <div class="byline">Step three · Want to try</div></div>
-      <div class="pg">03</div>
-    </a>
-    <a class="toc-item" href="#" data-add-place>
-      <div class="num">04</div><div class="thumb"></div>
-      <div class="body"><h3>Add a <em>new</em> spot.</h3>
-        <div class="dek">Missed your favourite hole-in-the-wall? Add it with name, area &amp; cuisine.</div>
-        <div class="byline">Step four · Your finds</div></div>
-      <div class="pg">04</div>
-    </a>
-    <a class="toc-item" href="#friends">
-      <div class="num">05</div><div class="thumb"></div>
-      <div class="body"><h3>Follow your <em>friends</em>.</h3>
-        <div class="dek">Add friends by <em>@handle</em> to see their verdicts live. Or trade share-links for friends who aren't signed up.</div>
-        <div class="byline">Step five · Friends</div></div>
-      <div class="pg">05</div>
-    </a>
-  </div>
-</section>
-
-<!-- ============ THE LOGBOOK ============ -->
+<!-- ============ PAGE: LOGBOOK ============ -->
+<div class="page" data-page="logbook">
 <section class="logbook" id="logbook">
   <div class="logbook-head">
     <div>
@@ -254,7 +214,10 @@
   <div class="empty-state" data-log-empty hidden></div>
 </section>
 
-<!-- ============ FRIENDS & SHARING ============ -->
+</div><!-- /page:logbook -->
+
+<!-- ============ PAGE: FRIENDS ============ -->
+<div class="page" data-page="friends">
 <section class="lists" id="friends">
   <div class="lists-head">
     <div>
@@ -296,16 +259,67 @@
   </div>
 </section>
 
+</div><!-- /page:friends -->
+
+<!-- ============ PAGE: INFO ============ -->
+<div class="page" data-page="info">
+<section class="contents">
+  <div class="contents-head">
+    <div class="label">The five-step issue</div>
+    <h2>Your taste, your <em>logbook</em>, your friends — synced across every device.</h2>
+    <p>Email magic-link sign-in, no password. Work through these in order; we recommend with chai.</p>
+  </div>
+  <div class="contents-list">
+    <a class="toc-item" href="#" data-signin>
+      <div class="num">01</div><div class="thumb"></div>
+      <div class="body"><h3>Create your <em>profile</em>.</h3>
+        <div class="dek">Email magic-link, no password. Pick a handle so friends can find you.</div>
+        <div class="byline">Step one · 30 seconds</div></div>
+      <div class="pg">01<span class="arrow">↗</span></div>
+    </a>
+    <a class="toc-item" href="#logbook" data-nav="logbook">
+      <div class="num">02</div><div class="thumb"></div>
+      <div class="body"><h3>Rate &amp; <em>note</em> a plate.</h3>
+        <div class="dek">Half-star precision, a note, a photo, the date you went — all optional.</div>
+        <div class="byline">Step two · The Logbook</div></div>
+      <div class="pg">02</div>
+    </a>
+    <a class="toc-item" href="#logbook" data-nav="logbook">
+      <div class="num">03</div><div class="thumb"></div>
+      <div class="body"><h3>Keep a <em>wishlist</em>.</h3>
+        <div class="dek">Places you haven't been yet — tracked separately until you tick them off.</div>
+        <div class="byline">Step three · Want to try</div></div>
+      <div class="pg">03</div>
+    </a>
+    <a class="toc-item" href="#" data-add-place>
+      <div class="num">04</div><div class="thumb"></div>
+      <div class="body"><h3>Add a <em>new</em> spot.</h3>
+        <div class="dek">Missed your favourite hole-in-the-wall? Add it with name, area &amp; cuisine.</div>
+        <div class="byline">Step four · Your finds</div></div>
+      <div class="pg">04</div>
+    </a>
+    <a class="toc-item" href="#friends" data-nav="friends">
+      <div class="num">05</div><div class="thumb"></div>
+      <div class="body"><h3>Follow your <em>friends</em>.</h3>
+        <div class="dek">Add friends by <em>@handle</em> to see their verdicts live. Or trade share-links for friends who aren't signed up.</div>
+        <div class="byline">Step five · Friends</div></div>
+      <div class="pg">05</div>
+    </a>
+  </div>
+</section>
+</div><!-- /page:info -->
+
 <!-- ============ END FOOT ============ -->
 <footer class="end-foot">
   <div class="left">
-    <a href="#logbook">The Logbook</a>
-    <a href="#friends">Friends</a>
+    <a href="#logbook" data-nav="logbook">The Logbook</a>
+    <a href="#friends" data-nav="friends">Friends</a>
+    <a href="#info" data-nav="info">Info</a>
     <a href="#" data-add-place>Add a place</a>
   </div>
   <div class="price">Bengaluru Eats<span>A logbook for how a city eats</span></div>
   <div class="right">
-    <a href="#top">Back to top</a>
+    <a href="#home" data-nav="home">Back to top</a>
     <a href="#" data-share-open>Share</a>
     <a href="#" data-signin data-signin-foot>Profile</a>
   </div>

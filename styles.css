@@ -45,6 +45,12 @@ body::after{
 
 ::selection{ background: var(--ink); color: var(--paper); }
 
+/* ============ PAGE ROUTING ============ */
+.page{ display: none; }
+.page.active{ display: block; }
+.masthead nav a[data-nav].active{ color: var(--terra); }
+.dbl-rule{ display: none; }
+
 .mono{ font-family: var(--ff-mono); font-weight:400; letter-spacing:.05em; }
 .upper{ text-transform: uppercase; letter-spacing:.18em;}
 .rule{ height:1px; background: var(--rule); border:0; margin: 0;}
