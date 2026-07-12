@@ -49,86 +49,161 @@ body::after{
 .page{ display: block; }
 .hamburger{ display: none; }
 .menu-close{ display: none; }
+.bottom-nav{ display: none; }
 /* desktop: hide mobile-only nav items */
 .masthead nav [data-nav="home"]{ display: none; }
 .masthead nav [data-nav="info"]{ display: none; }
 
 @media (max-width: 720px){
+  /* ---- page routing ---- */
   .page{ display: none; }
-  .page.active{ display: block; }
-  .masthead nav a[data-nav].active{ color: var(--terra); }
-  /* show all nav items on mobile */
-  .masthead nav [data-nav="home"]{ display: block; }
-  .masthead nav [data-nav="info"]{ display: block; }
-
-  /* hamburger */
-  .hamburger{
-    display: block; background: none; border: none; cursor: pointer;
-    font-size: 22px; line-height: 1; padding: 4px 6px; color: var(--ink);
-  }
-  .masthead .center{ display: none; }
-  .masthead .center.open{
-    display: flex; flex-direction: column; align-items: flex-start;
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: var(--paper); z-index: 100;
-    padding: 72px 28px 40px; gap: 6px;
-  }
-  .masthead .center.open nav{
-    flex-direction: column; gap: 4px;
-  }
-  .masthead .center.open nav a{
-    font-size: 18px; letter-spacing: .12em; padding: 10px 0;
-    border-bottom: 1px solid var(--rule);
-    display: block; width: 100%;
-  }
-  .menu-close{
-    position: absolute; top: 16px; right: 20px;
-    background: none; border: none; font-size: 28px; cursor: pointer;
-    color: var(--ink);
-  }
-  .masthead .center.open .menu-close{ display: block; }
-
+  .page.active{ display: block; animation: luxIn .4s ease both; }
   .dbl-rule{ display: none; }
 
-  /* ---- mobile app UX: bigger fonts, more breathing room ---- */
-  body{ font-size: 17px; line-height: 1.55; }
-  .feature h1 .small{ font-size: .48em; line-height: 1.35; }
-  .standfirst{ font-size: 18px; line-height: 1.5; }
-  .logbook-head h2{ font-size: clamp(30px, 9vw, 44px); }
-  .logbook-head .lbl,
-  .stats-head .lbl,
-  .lists-head .lbl,
-  .contents-head .label{ font-size: 12px; letter-spacing: .22em; }
-  .logbook-head .filters{ font-size: 12px; gap: 10px 14px; }
-  .stats-head h2,
-  .lists-head h2,
-  .contents-head h2{ font-size: clamp(28px, 8vw, 40px); }
-  .toc-item h3{ font-size: 22px; }
-  .toc-item .dek{ font-size: 15px; line-height: 1.45; }
-  .toc-item .byline{ font-size: 11px; }
-  .toolbar{ gap: 10px; }
-  .tb-search{ font-size: 16px; padding: 12px 14px; }
-  .tb-select{ font-size: 14px; padding: 10px 12px; }
-  .sc-sub{ font-size: 15px; line-height: 1.45; }
-  .share-card h3{ font-size: 22px; }
-  .modal-sub{ font-size: 16px; line-height: 1.45; }
-  .modal h2{ font-size: clamp(28px, 8vw, 38px); }
-  .modal-cta{ font-size: 14px; padding: 16px 28px; }
-  .modal-field input,
-  .modal-field textarea,
-  .modal-field select{ font-size: 16px; }
-  .af-item{ padding: 14px 0; }
-  .af-line{ font-size: 16px; }
-  .af-meta{ font-size: 12px; }
-  .af-note{ font-size: 15px; }
-  .empty-state{ font-size: 17px; line-height: 1.5; }
+  @keyframes luxIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
-  /* sticky masthead for app feel */
+  /* ---- masthead: refined brand bar ---- */
   .masthead{
     position: sticky; top: 0; z-index: 50;
     background: var(--paper);
     border-bottom: 1px solid var(--rule);
+    justify-content: space-between;
+    padding: 16px 24px;
   }
+  .hamburger{ display: none !important; }
+  .masthead .center{ display: none !important; }
+  .masthead .left{ gap: 12px; }
+  .masthead .est{ display: none; }
+  .masthead .right .edition{ display: none; }
+
+  /* ---- bottom tab bar ---- */
+  .bottom-nav{
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around; align-items: center;
+  }
+  .bn-tab{
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-family: var(--ff-mono);
+    font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 6px 0;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .25s;
+  }
+  .bn-ico{
+    width: 20px; height: 20px;
+    stroke: currentColor;
+    transition: stroke .25s;
+  }
+  .bn-tab.active{ color: var(--ink); }
+  .bn-tab.active .bn-ico{ stroke: var(--terra); }
+  .bn-tab.active::before{
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--terra);
+  }
+  body{ padding-bottom: 68px; }
+
+  /* ---- luxury typography ---- */
+  body{ font-size: 17px; line-height: 1.6; }
+  .feature h1 .small{ font-size: .46em; line-height: 1.4; }
+  .standfirst{ font-size: 18px; line-height: 1.55; }
+  .logbook-head h2{ font-size: clamp(32px, 9vw, 46px); }
+  .logbook-head .lbl,
+  .stats-head .lbl,
+  .lists-head .lbl,
+  .contents-head .label{ font-size: 11px; letter-spacing: .28em; }
+  .logbook-head .filters{ font-size: 11px; gap: 12px 16px; }
+  .stats-head h2,
+  .lists-head h2,
+  .contents-head h2{ font-size: clamp(30px, 9vw, 42px); }
+  .toc-item h3{ font-size: 23px; }
+  .toc-item .dek{ font-size: 15px; line-height: 1.5; }
+  .toc-item .byline{ font-size: 10px; letter-spacing: .2em; }
+  .empty-state{ font-size: 17px; line-height: 1.55; }
+
+  /* ---- luxury spacing ---- */
+  .logbook, .lists{ padding: 40px 24px 48px; }
+  .stats{ padding: 40px 24px; }
+  .contents{ padding: 40px 24px 48px; }
+  .feature{ padding: 40px 24px 44px; }
+  .logbook-head{ padding-bottom: 24px; margin-bottom: 32px; }
+  .share-grid{ gap: 20px; }
+  .share-card{ padding: 28px 24px; }
+  .share-card h3{ font-size: 22px; }
+  .sc-sub{ font-size: 15px; line-height: 1.5; }
+
+  /* ---- luxury inputs ---- */
+  .toolbar{ gap: 12px; margin-top: 4px; }
+  .tb-search{
+    font-size: 16px; padding: 14px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: transparent;
+    transition: border-color .2s;
+  }
+  .tb-search:focus{ border-color: var(--terra); outline: none; }
+  .tb-select{
+    font-size: 14px; padding: 12px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: transparent;
+  }
+  .sc-code-row input{
+    border-radius: 6px;
+  }
+
+  /* ---- luxury cards ---- */
+  .log-card{
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(26,22,17,.06);
+  }
+  .log-card .photo-sq{ border-radius: 8px 8px 0 0; }
+
+  /* ---- luxury modals ---- */
+  .modal{
+    border-radius: 16px 16px 0 0 !important;
+    padding: 36px 28px 40px !important;
+    max-height: 92vh;
+  }
+  .modal-sub{ font-size: 16px; line-height: 1.5; }
+  .modal h2{ font-size: clamp(28px, 8vw, 40px); }
+  .modal-cta{
+    font-size: 13px; padding: 16px 32px;
+    border-radius: 6px;
+    letter-spacing: .18em;
+  }
+  .modal-field input,
+  .modal-field textarea,
+  .modal-field select{
+    font-size: 16px; padding: 14px 16px;
+    border-radius: 6px;
+  }
+
+  /* ---- luxury activity feed ---- */
+  .af-item{ padding: 16px 0; }
+  .af-line{ font-size: 16px; line-height: 1.45; }
+  .af-meta{ font-size: 11px; letter-spacing: .05em; }
+  .af-note{ font-size: 15px; }
+  .af-av{
+    width: 36px; height: 36px;
+    font-size: 14px;
+  }
+
+  /* ---- footer: compact with bottom nav present ---- */
+  .end-foot{ padding-bottom: 24px; }
+  .folio.l, .folio.r{ display: none; }
 }
 
 .mono{ font-family: var(--ff-mono); font-weight:400; letter-spacing:.05em; }
