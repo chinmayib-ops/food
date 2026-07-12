@@ -2773,6 +2773,114 @@ html, body{ max-width: 100%; }
 }
 
 /* ============================================================
+   AESTHETIC PASS — contrast rhythm + meaningful color
+   1. Cuisine hue system: each cuisine gets a palette-adjacent hue,
+      used as the card spine + eyebrow. Color = information.
+   2. Stats section flips to dark ink (editorial contrast moment).
+   3. Footer flips dark to bookend the page.
+   ============================================================ */
+
+/* ── cuisine hues (warm, muted, same family as the palette) ── */
+[data-cz]{ --cz: var(--rule); }
+[data-cz="South Indian"]{ --cz: #b54a2e; }
+[data-cz="North Indian"]{ --cz: #863218; }
+[data-cz="Biryani"]{ --cz: #9c4a22; }
+[data-cz="Chinese"]{ --cz: #6b6a48; }
+[data-cz="Italian"]{ --cz: #6e7c4a; }
+[data-cz="Café"]{ --cz: #8e6a3d; }
+[data-cz="Bakery"]{ --cz: #c3863a; }
+[data-cz="Desserts"]{ --cz: #c2703d; }
+[data-cz="Street Food"]{ --cz: #d28a4a; }
+[data-cz="Continental"]{ --cz: #4a3f31; }
+[data-cz="Seafood"]{ --cz: #56707a; }
+[data-cz="Multi-cuisine"]{ --cz: #785936; }
+
+/* ── cards: gray box → paper sheet with a cuisine spine ── */
+.log-card.text-led{
+  border: 0;
+  border-top: 3px solid var(--cz);
+  box-shadow:
+    0 1px 0 rgba(26,22,17,.06),
+    0 14px 28px -22px rgba(40,20,5,.35);
+}
+.log-card.text-led:hover{
+  border-color: var(--cz);
+  box-shadow:
+    0 1px 0 rgba(26,22,17,.08),
+    0 22px 44px -20px rgba(40,20,5,.4);
+}
+.log-card.has-photo{
+  border: 0;
+  border-top: 3px solid var(--cz);
+  box-shadow:
+    0 1px 0 rgba(26,22,17,.06),
+    0 14px 28px -22px rgba(40,20,5,.35);
+}
+.log-card .card-eyebrow{ color: var(--cz); }
+.log-card .card-eyebrow .cz{ color: var(--cz); font-weight: 500; }
+
+.bh-card{
+  border: 0;
+  border-top: 3px solid var(--cz);
+  box-shadow:
+    0 1px 0 rgba(26,22,17,.06),
+    0 12px 24px -20px rgba(40,20,5,.3);
+}
+.bh-card:hover{
+  border-color: var(--cz);
+  box-shadow: 0 20px 40px -18px rgba(40,20,5,.38);
+}
+.bh-card .bh-eyebrow{ color: var(--cz); }
+
+/* ── stats: dark ink panel (the "year in plates" moment) ── */
+.stats{
+  background: var(--ink);
+}
+.stats::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(ellipse at 50% 0%, rgba(246,241,230,.04), transparent 70%);
+}
+.stats-head .lbl{ color: var(--terra); }
+.stats-head h2{ color: var(--paper); }
+.stats-head h2 em{ color: var(--terra); }
+.stats-grid{ border-color: rgba(246,241,230,.18); }
+.stat-cell{ border-right-color: rgba(246,241,230,.15); }
+.stat-num{ color: var(--paper); }
+.stat-lbl{ color: rgba(246,241,230,.5); }
+@media (max-width: 960px){
+  .stat-cell:nth-child(n+4){ border-top-color: rgba(246,241,230,.15); }
+}
+@media (max-width: 640px){
+  .stat-cell:nth-child(n+3){ border-top-color: rgba(246,241,230,.15); }
+}
+
+/* ── footer: dark bookend ── */
+.end-foot{
+  background: var(--ink);
+  color: rgba(246,241,230,.55);
+  border-top: 1px solid var(--ink);
+}
+.end-foot a{ color: var(--paper); }
+.end-foot a:hover{ color: var(--terra); }
+.end-foot .price{ color: var(--paper); }
+.end-foot .price span{ color: rgba(246,241,230,.5); }
+.attribution{
+  background: var(--ink);
+  color: rgba(246,241,230,.4);
+  margin-top: -1px;
+  padding-top: 6px;
+}
+.attribution a{ color: rgba(246,241,230,.7); }
+.attribution a:hover{ color: var(--terra); }
+
+/* ── search gets real presence (it's the primary action now) ── */
+.tb-search{
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  padding: 13px 16px;
+}
+
+/* ============================================================
    FX PASS — marquee, scroll-reveal, 3D tilt, entrances
    ponytail: pure CSS + one IO; no libraries. Existing
    prefers-reduced-motion rule already neutralizes all of it.

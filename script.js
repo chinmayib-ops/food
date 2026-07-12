@@ -674,7 +674,7 @@ function placeCard(p){
     : `<button class="card-wish ghost" data-wish="${p.id}" type="button">☆ Wishlist</button>`;
 
   return `
-  <div class="log-card${photo?' has-photo':' text-led'}" data-place-id="${p.id}">
+  <div class="log-card${photo?' has-photo':' text-led'}" data-place-id="${p.id}" data-cz="${esc(p.cuisine||'Other')}">
     ${photoBlock}
     <div class="card-body">
       <div class="card-eyebrow">${esc(p.hood)}${p.cuisine?` · <span class="cz">${esc(p.cuisine)}</span>`:''}</div>
@@ -788,7 +788,7 @@ function diaryEntry(it){
    nudges meaningful paths: friend recs, your wishlist, the spin.
    ============================================================ */
 function bhCard(p, blurb){
-  return `<button type="button" class="bh-card" data-place-detail="${esc(p.id)}">
+  return `<button type="button" class="bh-card" data-place-detail="${esc(p.id)}" data-cz="${esc(p.cuisine||'Other')}">
     <div class="bh-eyebrow">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
     <div class="bh-name">${esc(p.name)}</div>
     <div class="bh-blurb">${esc(blurb)}</div>
