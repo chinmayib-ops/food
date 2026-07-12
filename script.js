@@ -1879,6 +1879,11 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-menu-close]')){
     const c=document.querySelector('.masthead .center'); if(c) c.classList.remove('open');
   }
+  if(e.target.closest('[data-tb-toggle]')){
+    const btn=document.querySelector('.tb-toggle');
+    const tb=document.querySelector('.toolbar');
+    if(btn&&tb){ btn.classList.toggle('open'); tb.classList.toggle('open'); }
+  }
 });
 // on resize from mobile→desktop, show all pages
 window.addEventListener('resize',()=>{
