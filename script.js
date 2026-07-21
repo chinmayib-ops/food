@@ -1917,9 +1917,11 @@ document.addEventListener('click',e=>{
     if(btn&&tb){ btn.classList.toggle('open'); tb.classList.toggle('open'); }
   }
 });
-// on resize from mobile→desktop, show all pages
+// keep page routing in sync with viewport crossing the mobile/desktop line
+// (device rotation, toggling "request desktop site", resizing a window)
 window.addEventListener('resize',()=>{
-  if(!isMobile()) document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
+  if(isMobile()) routeFromHash();
+  else document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
 });
 
 document.addEventListener('DOMContentLoaded',()=>{
