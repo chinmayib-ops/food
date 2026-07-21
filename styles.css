@@ -203,6 +203,7 @@ body::after{
   }
 
   /* ---- 1. streamlined home: hide heavy sections on mobile ---- */
+  .marquee{ display: none; }
   .feature .photo-frame{ display: none; }
   .feature .standfirst{ display: none; }
   .feature .meta-line{ display: none; }
