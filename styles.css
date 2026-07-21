@@ -17,7 +17,7 @@
   --pad-y:    56px;
 }
 *{ box-sizing: border-box; }
-html,body{ margin:0; padding:0; }
+html,body{ margin:0; padding:0; overflow-x: hidden; }
 body{
   font-family: var(--ff-body);
   color: var(--ink);
@@ -2941,9 +2941,6 @@ body[data-sync="syncing"] .pm-sync{ color: var(--terra); }
 /* ── Stats grid: 2-up on phones to keep numbers readable ── */
 @media (max-width: 640px){
   .stats-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-}
-@media (max-width: 380px){
-  .stats-grid{ grid-template-columns: 1fr; }
 }
 
 /* ── Modal field bigger tap targets on phones ── */
