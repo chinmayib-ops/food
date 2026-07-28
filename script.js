@@ -1253,6 +1253,99 @@ function renderProfileUI(){
 }
 
 /* ============================================================
+   RENDER: the profile page
+   ============================================================ */
+function renderProfile(){
+  const wrap=document.querySelector('[data-profile-page]'); if(!wrap) return;
+  const p=Profile.get();
+
+  if(!p){
+    wrap.innerHTML=`<div class="pfp-signedout">
+      <div class="pfp-so-mark">·</div>
+      <h3>You're not signed in <em>yet</em>.</h3>
+      <p>Create a profile to rate plates, keep a wishlist, follow friends and sync your
+      logbook across devices.</p>
+      <button type="button" class="pfp-cta" data-signin>Create your profile <span class="arrow">→</span></button>
+    </div>`;
+    return;
+  }
+
+  const handle=p.handle||slugify(p.name);
+  const init=(p.name||'?').trim().charAt(0).toUpperCase()||'?';
+  const all=Entries.all();
+  const rated=Object.entries(all).filter(([,e])=>e.rating);
+  const total=rated.length;
+  const avg=total?fmt(Math.round(rated.reduce((s,[,e])=>s+e.rating,0)/total*10)/10):'—';
+  const friends=Friends.count();
+  const wish=Wishlist.all().length;
+  const adventurous=rated.filter(([,e])=>e.superRated).length;
+  const cloud=Sync.isCloud()&&Sync.hasSession();
+  const joined=p.joinedAt||p.createdAt;
+  const joinedStr=joined?new Date(joined).toLocaleDateString('en-IN',{month:'long',year:'numeric'}):'—';
+  const link=shareLink();
+
+  const recencyOf=e=>new Date(e.visitedAt||e.updatedAt||e.createdAt||0).getTime()||0;
+  const recent=rated.map(([id,e])=>({id,e,pl:Places.byId(id)})).filter(x=>x.pl)
+    .sort((a,b)=>recencyOf(b.e)-recencyOf(a.e)).slice(0,5);
+
+  const waIco=`<svg class="sc-wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 1.8c2.16 0 4.19.84 5.72 2.37a8.05 8.05 0 0 1 2.37 5.73c0 4.47-3.64 8.1-8.1 8.1a8.1 8.1 0 0 1-4.12-1.13l-.3-.18-3.12.82.83-3.04-.2-.31a8.03 8.03 0 0 1-1.25-4.31c0-4.47 3.64-8.1 8.11-8.1Zm-4.4 4.35c-.2 0-.53.08-.81.38-.28.31-1.07 1.04-1.07 2.54 0 1.5 1.09 2.94 1.24 3.15.15.2 2.14 3.35 5.29 4.56.74.29 1.31.46 1.76.58.74.24 1.41.2 1.94.12.59-.09 1.83-.75 2.09-1.47.26-.72.26-1.34.18-1.47-.08-.13-.28-.2-.59-.35-.31-.16-1.83-.9-2.11-1-.28-.11-.49-.16-.69.15-.2.31-.79 1-.97 1.2-.18.2-.36.24-.66.08-.31-.15-1.31-.48-2.5-1.54-.92-.82-1.54-1.84-1.72-2.15-.18-.31-.02-.48.13-.63.14-.14.31-.36.46-.54.16-.19.2-.32.31-.53.1-.2.05-.38-.03-.54-.08-.15-.69-1.68-.95-2.3-.25-.6-.5-.52-.69-.53-.18-.01-.38-.01-.59-.01Z"/></svg>`;
+
+  const stat=(v,l)=>`<div class="pfp-stat"><b>${esc(String(v))}</b><span>${esc(l)}</span></div>`;
+
+  wrap.innerHTML=`
+    <div class="pfp-card">
+      <div class="pfp-id">
+        <div class="pfp-avatar">${esc(init)}</div>
+        <div class="pfp-idbody">
+          <h3 class="pfp-name">${esc(p.name)}</h3>
+          <div class="pfp-handle">@${esc(handle)}</div>
+          <div class="pfp-badges">
+            <span class="pfp-badge ${cloud?'on':''}">${cloud?'☁ Synced across devices':'● On this device'}</span>
+            <span class="pfp-badge muted">Member since ${esc(joinedStr)}</span>
+          </div>
+        </div>
+        <button type="button" class="pfp-edit" data-edit-profile>Edit</button>
+      </div>
+      <div class="pfp-stats">
+        ${stat(total,'Plates rated')}
+        ${stat(total?avg+'★':'—','Average')}
+        ${stat(friends,'Friends')}
+        ${stat(wish,'Wishlist')}
+        ${stat(adventurous+' ✦','Adventurous')}
+      </div>
+    </div>
+
+    <div class="pfp-cols">
+      <div class="pfp-mod">
+        <div class="pfp-mod-head">Share your logbook</div>
+        <p class="pfp-mod-sub">Send your verdicts to anyone — they don't need an account.</p>
+        <div class="pfp-share-btns">
+          <button type="button" class="sc-share-btn wa" data-share-wa>${waIco} WhatsApp</button>
+          <button type="button" class="sc-share-btn" data-share-native><span class="sc-share-ico">⇪</span> Share…</button>
+          <button type="button" class="sc-share-btn ghost" data-share-copy>Copy link</button>
+        </div>
+        ${link?`<div class="pfp-link" title="${esc(link)}">${esc(link.length>52?link.slice(0,52)+'…':link)}</div>`:''}
+      </div>
+
+      <div class="pfp-mod">
+        <div class="pfp-mod-head">Recently rated</div>
+        ${recent.length?`<div class="pfp-recent">${recent.map(r=>`
+          <button type="button" class="pfp-recent-row" data-place-detail="${esc(r.id)}">
+            <span class="pfp-recent-name">${esc(r.pl.name)}<em>${esc(r.pl.hood||'')}</em></span>
+            <span class="pfp-recent-rating">${esc(fmt(r.e.rating))}★</span>
+          </button>`).join('')}</div>
+          <a class="pfp-recent-all" href="#logbook" data-tab="mine">See all you've rated →</a>`
+          :`<p class="pfp-mod-sub">Nothing rated yet. <a href="#logbook" data-tab="all">Start your logbook →</a></p>`}
+      </div>
+    </div>
+
+    <div class="pfp-actions">
+      <button type="button" class="pfp-action" data-print><span>⎙</span> Print / save as PDF</button>
+      <button type="button" class="pfp-action danger" data-signout><span>→</span> Sign out</button>
+    </div>`;
+}
+
+/* ============================================================
    share / import (v2 payload; reads v1 too)
    ============================================================ */
 function slimEntries(){
@@ -1435,6 +1528,25 @@ function initModals(){
       Toast.show('Welcome, <em>'+esc(name.split(' ')[0])+'</em> · synced to the cloud ☁'); renderAll(); }
   });
 
+  // edit profile (dismissable; works for both local and cloud accounts)
+  const epf=document.querySelector('[data-editprofile-form]');
+  epf && epf.addEventListener('submit', async e=>{ e.preventDefault();
+    const fd=new FormData(epf);
+    const name=(fd.get('name')||'').toString().trim();
+    const handle=(fd.get('handle')||'').toString().trim();
+    if(!name||!handle) return;
+    const btn=epf.querySelector('button[type="submit"]'); if(btn) btn.disabled=true;
+    let ok=true;
+    if(Sync.isCloud() && Sync.hasSession()){
+      ok=await Sync.saveProfile(name, handle);
+    } else {
+      const prev=Profile.get()||{};
+      Profile.set({ ...prev, name, handle:slugify(handle||name) });
+    }
+    if(btn) btn.disabled=false;
+    if(ok){ closeModal(epf.closest('[data-modal]')); Toast.show('Profile updated'); renderAll(); }
+  });
+
   // add place
   const af=document.querySelector('[data-addplace-form]');
   af && af.addEventListener('submit',e=>{ e.preventDefault();
@@ -1505,10 +1617,8 @@ function initProfileMenu(){
   if(!chip||!dd) return;
   chip.addEventListener('click',e=>{ e.stopPropagation(); dd.hidden=!dd.hidden; });
   document.addEventListener('click',e=>{ if(!dd.hidden&&!dd.contains(e.target)&&e.target!==chip) dd.hidden=true; });
-  const so=document.querySelector('[data-signout]');
-  so && so.addEventListener('click',()=>{ dd.hidden=true;
-    if(Sync.isCloud()){ window.Cloud.Auth.signOut(); }
-    Profile.clear(); Toast.show('Signed out · local cache kept on this device'); });
+  // sign-out is handled by the delegated click handler in initActions (one place, works
+  // from both the dropdown and the profile page).
 }
 
 /* ============================================================
@@ -1949,7 +2059,7 @@ function initToolbar(){
 /* ---------- global click/actions ---------- */
 function initActions(){
   document.addEventListener('click',e=>{
-    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-share-wa],[data-share-native],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],[data-place-detail],a[href^="#"]');
+    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-share-wa],[data-share-native],[data-edit-profile],[data-signout],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],[data-place-detail],a[href^="#"]');
     if(!t) return;
 
     if(t.matches('[data-friend-remove]')){ e.preventDefault(); Sync.removeFriendCloud(t.dataset.friendRemove); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
@@ -1983,6 +2093,15 @@ function initActions(){
         ()=>{ const i=document.querySelector('[data-share-link]'); i.select(); document.execCommand('copy'); Toast.show('Share link copied'); }); return; }
     if(t.hasAttribute('data-share-wa')){ e.preventDefault(); doShare('wa'); return; }
     if(t.hasAttribute('data-share-native')){ e.preventDefault(); doShare('native'); return; }
+    if(t.hasAttribute('data-edit-profile')){ e.preventDefault();
+      const p=Profile.get(); if(!p){ openModal('signin'); return; }
+      const ef=document.querySelector('[data-editprofile-form]');
+      if(ef){ ef.name.value=p.name||''; ef.handle.value=p.handle||slugify(p.name)||''; }
+      openModal('editprofile'); return; }
+    if(t.hasAttribute('data-signout')){ e.preventDefault();
+      const dd=document.querySelector('[data-profile-dropdown]'); if(dd) dd.hidden=true;
+      if(Sync.isCloud()){ try{ window.Cloud.Auth.signOut(); }catch{} }
+      Profile.clear(); Toast.show('Signed out · local cache kept on this device'); return; }
     if(t.hasAttribute('data-friend-add')){ e.preventDefault();
       const v=document.querySelector('[data-friend-input]').value.trim();
       if(Sync.isCloud() && Sync.hasSession() && v && !/#friend=/.test(v) && /^@?[a-z0-9._-]{2,30}$/i.test(v)){
@@ -1993,6 +2112,7 @@ function initActions(){
       location.hash='logbook'; return; }
 
     if(t.hasAttribute('data-nav')){ e.preventDefault();
+      const dd=document.querySelector('[data-profile-dropdown]'); if(dd) dd.hidden=true;
       if(isMobile()){ location.hash=t.dataset.nav; }
       else { const el=document.getElementById(t.dataset.nav); if(el) el.scrollIntoView({behavior:'smooth'}); }
       return; }
@@ -2043,10 +2163,10 @@ const FX=(()=>{
   return { scan };
 })();
 
-function renderAll(){ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); FX.scan(); }
+function renderAll(){ renderProfileUI(); renderProfile(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); FX.scan(); }
 
 /* ---------- page router (mobile only) ---------- */
-const PAGES = ['home','logbook','stats','friends','info'];
+const PAGES = ['home','logbook','stats','friends','profile','info'];
 const isMobile = () => window.innerWidth <= 720;
 
 function navigateTo(page){
@@ -2106,4 +2226,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   else document.querySelectorAll('.page[data-page]').forEach(el=>el.classList.add('active'));
 });
 document.addEventListener('profile:change',renderAll);
-document.addEventListener('data:change',()=>{ renderProfileUI(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });
+document.addEventListener('data:change',()=>{ renderProfileUI(); renderProfile(); renderFeature(); renderStats(); renderFollowRow(); renderActivityFeed(); renderShare(); renderLogbook(); SpinUI.renderPendingBanner(); Sync.schedulePush(); });
