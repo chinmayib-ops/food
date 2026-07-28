@@ -880,6 +880,25 @@ function renderBrowseHome(){
   `;
 }
 
+/* live counts on the logbook filter tabs — so you can see what's in each */
+function renderTabCounts(){
+  const labels={all:'All places',mine:'Rated by you',wishlist:'Wishlist',friends:'From friends'};
+  const mineCount=Object.values(Entries.all()).filter(e=>e.rating).length;
+  const wishCount=Wishlist.all().length;
+  const friendIds=new Set();
+  Friends.all().forEach(f=>{
+    const es=f.entries||f.ratings||{};
+    Object.entries(es).forEach(([pid,e])=>{ const r=(typeof e==='number')?e:(e&&e.rating); if(r) friendIds.add(pid); });
+  });
+  const counts={mine:mineCount, wishlist:wishCount, friends:friendIds.size};
+  Object.entries(labels).forEach(([tab,base])=>{
+    const a=document.querySelector(`[data-logbook-filters] [data-tab="${tab}"]`);
+    if(!a) return;
+    const n=counts[tab];
+    a.innerHTML=esc(base)+(n?` <span class="tab-count">${n}</span>`:'');
+  });
+}
+
 function renderLogbook(){
   const grid=document.querySelector('[data-log-grid]');
   const empty=document.querySelector('[data-log-empty]');
@@ -890,6 +909,8 @@ function renderLogbook(){
   else if(state.tab==='wishlist') title.innerHTML='Places you <em>want</em> to try.';
   else if(state.tab==='friends')  title.innerHTML='What your <em>friends</em> have tasted.';
   else                        title.innerHTML='Every plate in the city, <em>your</em> verdict.';
+
+  renderTabCounts();
 
   // Search-first behaviour for the All Places tab: don't paint the wall.
   const noQuery = !state.q && !state.cuisine && !state.minRating;
@@ -943,25 +964,141 @@ function renderLogbook(){
 function renderStats(){
   const wrap=document.querySelector('[data-stats-grid]'); if(!wrap) return;
   const entries=Object.entries(Entries.all()).filter(([,e])=>e.rating);
-  const reg=Places.registry();
   const total=entries.length;
+
+  // ---- empty state: nothing rated yet ----
+  if(!total){
+    wrap.innerHTML=`<div class="stats-empty">
+      <div class="se-num">0</div>
+      <p>No plates rated yet. Your taste map fills in as you go —
+      rate a few places and this page turns into <em>your</em> year in plates.</p>
+      <a class="se-cta" href="#logbook" data-nav="logbook">Start rating <span class="arrow">→</span></a>
+    </div>`;
+    return;
+  }
+
   const yr=new Date().getFullYear();
   const thisYear=entries.filter(([,e])=>{
     const d=e.visitedAt||e.createdAt; return d && new Date(d).getFullYear()===yr;
   }).length;
-  const avg=total?fmt(Math.round(entries.reduce((s,[,e])=>s+e.rating,0)/total*10)/10):'—';
-  const tally=(keyFn)=>{ const m={}; entries.forEach(([id])=>{ const p=reg.find(x=>x.id===id); if(!p)return; const k=keyFn(p); if(k) m[k]=(m[k]||0)+1; });
-    return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; };
-  const topArea=tally(p=>p.hood); const topCz=tally(p=>p.cuisine);
-  const cells=[
+  const sum=entries.reduce((s,[,e])=>s+e.rating,0);
+  const avg=Math.round(sum/total*10)/10;
+  const adventurous=entries.filter(([,e])=>e.superRated).length;
+
+  // per-place lookups
+  const withPlace=entries.map(([id,e])=>({id,e,p:Places.byId(id)})).filter(x=>x.p);
+
+  // ---- rating distribution (rounded to whole stars) ----
+  const dist=[0,0,0,0,0]; // index 0 => 1★ … index 4 => 5★
+  entries.forEach(([,e])=>{ const b=Math.min(5,Math.max(1,Math.round(e.rating))); dist[b-1]++; });
+  const distMax=Math.max(...dist,1);
+
+  // ---- taste profile by cuisine (avg + count) ----
+  const cz={};
+  withPlace.forEach(({e,p})=>{ if(!p.cuisine) return; (cz[p.cuisine]=cz[p.cuisine]||{sum:0,n:0}).sum+=e.rating; cz[p.cuisine].n++; });
+  const czList=Object.entries(cz).map(([k,v])=>({name:k,avg:v.sum/v.n,n:v.n}))
+    .sort((a,b)=>b.n-a.n||b.avg-a.avg).slice(0,5);
+
+  // ---- where you eat: top areas ----
+  const area={};
+  withPlace.forEach(({p})=>{ if(!p.hood) return; area[p.hood]=(area[p.hood]||0)+1; });
+  const areaList=Object.entries(area).map(([k,n])=>({name:k,n})).sort((a,b)=>b.n-a.n).slice(0,5);
+  const areaMax=areaList.length?areaList[0].n:1;
+
+  const cuisinesTried=Object.keys(cz).length;
+  const areasExplored=Object.keys(area).length;
+
+  // ---- your best plate (highest rating, ties broken by recency) ----
+  const recencyOf=x=>new Date(x.e.visitedAt||x.e.updatedAt||x.e.createdAt||0).getTime()||0;
+  const best=[...withPlace].sort((a,b)=>b.e.rating-a.e.rating||recencyOf(b)-recencyOf(a))[0];
+
+  const bar=(pct)=>`<span class="dbar"><span class="dbar-fill" style="width:${Math.max(3,Math.round(pct))}%"></span></span>`;
+
+  const ledger=[
     ['Plates rated', total],
     [`Rated in ${yr}`, thisYear],
-    ['Average rating', total?avg+'★':'—'],
-    ['Top area', topArea?topArea[0]:'—'],
-    ['Top cuisine', topCz?topCz[0]:'—'],
-    ['On the wishlist', Wishlist.all().length],
+    ['Average', avg+'★'],
+    ['Cuisines tried', cuisinesTried],
+    ['Areas explored', areasExplored],
+    ['Adventurous ✦', adventurous],
   ];
-  wrap.innerHTML=cells.map(([l,v])=>`<div class="stat-cell"><div class="stat-num">${esc(String(v))}</div><div class="stat-lbl">${esc(l)}</div></div>`).join('');
+
+  wrap.innerHTML=`
+    <!-- headline verdict -->
+    <div class="stats-hero">
+      <div class="sh-big">
+        <span class="sh-num">${esc(String(total))}</span>
+        <span class="sh-unit">plate${total===1?'':'s'} logged<br/>across the city</span>
+      </div>
+      <div class="sh-avg">
+        <div class="sh-avg-num">${esc(fmt(avg))}<span class="sh-of">/5</span></div>
+        <div class="sh-avg-stars"><span class="rate-bg">★★★★★</span><span class="sh-avg-fg" style="width:${avg/5*100}%">★★★★★</span></div>
+        <div class="sh-avg-lbl">your average verdict</div>
+      </div>
+    </div>
+
+    <!-- ledger strip -->
+    <div class="stats-ledger">
+      ${ledger.map(([l,v])=>`<div class="stat-cell"><div class="stat-num">${esc(String(v))}</div><div class="stat-lbl">${esc(l)}</div></div>`).join('')}
+    </div>
+
+    <div class="stats-cols">
+      <!-- rating distribution -->
+      <div class="stats-mod">
+        <div class="sm-head"><span class="sm-kick">01</span> How you score</div>
+        <div class="dist">
+          ${[5,4,3,2,1].map(star=>{
+            const c=dist[star-1];
+            return `<div class="dist-row">
+              <span class="dist-star">${star}★</span>
+              ${bar(c/distMax*100)}
+              <span class="dist-count">${c}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="sm-foot">You rarely give it away — ${esc(String(dist[4]+dist[3]))} of ${esc(String(total))} plates earned 4★ or more.</div>
+      </div>
+
+      <!-- taste profile -->
+      <div class="stats-mod">
+        <div class="sm-head"><span class="sm-kick">02</span> What you eat</div>
+        <div class="taste">
+          ${czList.map(c=>`<div class="taste-row">
+            <div class="taste-top"><span class="taste-name">${esc(c.name)}</span><span class="taste-avg">${esc(fmt(Math.round(c.avg*10)/10))}★</span></div>
+            ${bar(c.avg/5*100)}
+            <span class="taste-n">${c.n} plate${c.n===1?'':'s'}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-cols">
+      <!-- best plate -->
+      ${best?`<div class="stats-mod best-mod">
+        <div class="sm-head"><span class="sm-kick">03</span> Your top verdict</div>
+        <button type="button" class="best-plate" data-place-detail="${esc(best.id)}">
+          <div class="best-rating">${esc(fmt(best.e.rating))}<span>★</span></div>
+          <div class="best-body">
+            <div class="best-name">${esc(best.p.name)}</div>
+            <div class="best-meta">${esc(best.p.hood||'')}${best.p.cuisine?' · '+esc(best.p.cuisine):''}</div>
+            ${best.e.note?`<div class="best-note">"${esc(best.e.note.slice(0,90))}${best.e.note.length>90?'…':''}"</div>`:''}
+          </div>
+          <span class="best-go">→</span>
+        </button>
+      </div>`:''}
+
+      <!-- where you eat -->
+      <div class="stats-mod">
+        <div class="sm-head"><span class="sm-kick">04</span> Where you eat</div>
+        <div class="areas">
+          ${areaList.map(a=>`<div class="area-row">
+            <span class="area-name">${esc(a.name)}</span>
+            ${bar(a.n/areaMax*100)}
+            <span class="area-n">${a.n}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
 }
 
 /* ============================================================
@@ -1139,6 +1276,33 @@ function shareLink(){
     return `${location.origin}${location.pathname}#addfriend=${encodeURIComponent(p.handle)}`;
   }
   const c=shareCode(); return c?`${location.origin}${location.pathname}#friend=${c}`:null;
+}
+function shareMessage(){
+  const link=shareLink(); if(!link) return null;
+  const p=Profile.get();
+  const n=Entries.count();
+  const who=p?(p.name||'@'+(p.handle||'')):'I';
+  const text=`${who}'s Bengaluru Eats logbook — ${n} plate${n===1?'':'s'} rated across the city. Open the link to see my verdicts:`;
+  return { link, text, title:'Bengaluru Eats' };
+}
+/* one entry point for every share surface (WhatsApp, native sheet, copy) */
+function doShare(kind){
+  const m=shareMessage();
+  if(!m){ openModal('signin'); Toast.show('Sign in to get a share link'); return; }
+  if(kind==='wa'){
+    const url='https://wa.me/?text='+encodeURIComponent(m.text+' '+m.link);
+    window.open(url,'_blank','noopener'); return;
+  }
+  if(kind==='native'){
+    if(navigator.share){
+      navigator.share({ title:m.title, text:m.text, url:m.link }).catch(()=>{});
+    } else {
+      // no native sheet (most desktops) — fall back to WhatsApp web
+      window.open('https://wa.me/?text='+encodeURIComponent(m.text+' '+m.link),'_blank','noopener');
+      Toast.show('Opening WhatsApp — or use Copy');
+    }
+    return;
+  }
 }
 function renderShare(){
   const i=document.querySelector('[data-share-link]'); const h=document.querySelector('[data-share-hint]');
@@ -1785,7 +1949,7 @@ function initToolbar(){
 /* ---------- global click/actions ---------- */
 function initActions(){
   document.addEventListener('click',e=>{
-    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],[data-place-detail],a[href^="#"]');
+    const t=e.target.closest('[data-add-place],[data-signin],[data-share-open],[data-share-copy],[data-share-wa],[data-share-native],[data-friend-add],[data-friend-remove],[data-compare],[data-tab],[data-edit-entry],[data-wish],[data-print],[data-clear-filters],[data-show-all],[data-place-detail],a[href^="#"]');
     if(!t) return;
 
     if(t.matches('[data-friend-remove]')){ e.preventDefault(); Sync.removeFriendCloud(t.dataset.friendRemove); Friends.remove(t.dataset.friendRemove); Toast.show('Friend removed'); return; }
@@ -1817,6 +1981,8 @@ function initActions(){
       const l=shareLink(); if(!l){ openModal('signin'); Toast.show('Sign in to get a share link'); return; }
       navigator.clipboard?.writeText(l).then(()=>Toast.show('Share link copied · send it to a friend'),
         ()=>{ const i=document.querySelector('[data-share-link]'); i.select(); document.execCommand('copy'); Toast.show('Share link copied'); }); return; }
+    if(t.hasAttribute('data-share-wa')){ e.preventDefault(); doShare('wa'); return; }
+    if(t.hasAttribute('data-share-native')){ e.preventDefault(); doShare('native'); return; }
     if(t.hasAttribute('data-friend-add')){ e.preventDefault();
       const v=document.querySelector('[data-friend-input]').value.trim();
       if(Sync.isCloud() && Sync.hasSession() && v && !/#friend=/.test(v) && /^@?[a-z0-9._-]{2,30}$/i.test(v)){
