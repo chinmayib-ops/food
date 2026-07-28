@@ -1516,7 +1516,18 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   background: var(--terra); color: var(--paper);
   font-family: var(--ff-disp); font-size: 36px;
   display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; cursor: pointer;
 }
+.pfp-avatar-cam{
+  position: absolute; right: 0; bottom: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--ink); color: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border: 2px solid var(--paper);
+}
+/* avatar photos fill any round avatar container (chip, profile, friends) */
+.av-img{ width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+[data-avatar], .fr-av, .af-av{ overflow: hidden; }
 .pfp-idbody{ flex: 1; min-width: 0; }
 .pfp-name{ font-family: var(--ff-disp); font-size: clamp(24px,4vw,34px); line-height: 1; margin: 0; color: var(--ink); }
 .pfp-handle{ font-family: var(--ff-mono); font-size: 13px; color: var(--terra); margin-top: 6px; }

@@ -23,9 +23,10 @@ accounts and live sync. With no backend configured it runs fully offline in
 - **Friends & sharing** — follow friends by `@handle` to see their verdicts live, or
   share your whole logbook via one link. Share straight to **WhatsApp**, the native
   device share sheet, or copy the link.
-- **Profile** — your account page: avatar, handle, member-since and sync status, a
-  stat summary, quick share buttons, your recently rated plates, and account actions
-  (edit name/handle, print/export, sign out). Works signed-in or offline.
+- **Profile** — your account page: an uploadable avatar photo, handle, member-since
+  and sync status, a stat summary, quick share buttons, your recently rated plates, and
+  account actions (edit name/handle, print/export, sign out). Works signed-in or offline;
+  when signed in, your avatar syncs and shows up in friends' feeds.
 - **Spin the Dosa** — can't decide? A weighted picker that considers distance, your taste,
   your wishlist, and your friends, with an optional check-in flow that unlocks an
   *Adventurous Visit* badge.

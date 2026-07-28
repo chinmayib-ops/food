@@ -202,6 +202,9 @@ alter table public.entries drop constraint if exists entries_note_len;
 alter table public.entries add  constraint entries_note_len
   check (char_length(coalesce(note, '')) <= 2000) not valid;
 
+-- profiles: optional avatar photo (uploaded to the dish-photos bucket)
+alter table public.profiles add column if not exists avatar_url text;
+
 -- profiles: a handle is a slug; a name is short
 alter table public.profiles drop constraint if exists profiles_handle_fmt;
 alter table public.profiles add  constraint profiles_handle_fmt

@@ -45,7 +45,7 @@
       return data || null;
     },
     async findByHandle(handle) {
-      const { data } = await sb.from('profiles').select('id,name,handle')
+      const { data } = await sb.from('profiles').select('id,name,handle,avatar_url')
         .ilike('handle', handle).maybeSingle();
       return data || null;
     },
@@ -54,8 +54,9 @@
       return !!(data && data.id !== myId);
     },
     async upsertProfile(p) {
-      const { error } = await sb.from('profiles')
-        .upsert({ id: p.id, name: p.name, handle: p.handle }, { onConflict: 'id' });
+      const row = { id: p.id, name: p.name, handle: p.handle };
+      if (p.avatar_url !== undefined) row.avatar_url = p.avatar_url;
+      const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
       return error;
     },
 
@@ -116,7 +117,7 @@
       const { data } = await sb.from('friendships').select('friend_id').eq('user_id', uid);
       const ids = (data || []).map(r => r.friend_id);
       if (!ids.length) return [];
-      const { data: profs } = await sb.from('profiles').select('id,name,handle').in('id', ids);
+      const { data: profs } = await sb.from('profiles').select('id,name,handle,avatar_url').in('id', ids);
       return profs || [];
     },
     async addFriend(uid, friendId) {

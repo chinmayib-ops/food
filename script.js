@@ -196,8 +196,17 @@ const Sync = (function(){
     // joinedAt comes from the DB's created_at (authoritative), so "member
     // since" on the profile page reflects the real sign-up date, not now.
     Profile.set({ name:profileRow.name, handle:profileRow.handle, id:user.id, cloud:true,
+      avatarUrl: profileRow.avatar_url || null,
       joinedAt: profileRow.created_at || new Date().toISOString() });
     return true;
+  }
+  async function uploadAvatar(dataURL){
+    if(!cloud()||!me) return;
+    const url=await C.Storage.uploadPhoto(me.id, 'avatar', dataURL);
+    if(!url){ Toast.show('Photo saved on this device (cloud upload failed)'); return; }
+    const p=Profile.get()||{};
+    await C.DB.upsertProfile({ id:me.id, name:p.name, handle:p.handle, avatar_url:url });
+    Profile.set({ ...p, avatarUrl:url });
   }
   async function saveProfile(name, handle){
     if(!me) return false;
@@ -215,6 +224,7 @@ const Sync = (function(){
     const prior=Profile.get();
     profileRow={ id:me.id, name, handle };
     Profile.set({ name, handle, id:me.id, cloud:true,
+      avatarUrl:(prior&&prior.avatarUrl) || null,
       joinedAt:(prior&&prior.joinedAt) || new Date().toISOString() });
     await pull();
     C.Realtime.subscribe(onRealtime);
@@ -261,7 +271,7 @@ const Sync = (function(){
           visitedAt:r.visited_at||'', updatedAt:r.updated_at,
           dishes:r.dishes||null, superRated:!!r.super_rated
         }; });
-        objs.push({ name:f.name, handle:f.handle, uid:f.id, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
+        objs.push({ name:f.name, handle:f.handle, uid:f.id, avatar:f.avatar_url||null, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
       }
       const keep=loadJSON(KEY_FRIENDS,[]).filter(x=>!x.cloud);
       localStorage.setItem(KEY_FRIENDS, JSON.stringify([...keep,...objs]));
@@ -374,7 +384,7 @@ const Sync = (function(){
     }
   }
 
-  return { boot, pull, schedulePush, saveProfile, addFriendByHandle,
+  return { boot, pull, schedulePush, saveProfile, uploadAvatar, addFriendByHandle,
            removeFriendCloud, uploadPendingPhoto, isCloud:cloud, hasSession:()=>!!me };
 })();
 
@@ -588,6 +598,33 @@ function compressImage(file, cb){
   };
   reader.onerror=()=>cb(null);
   reader.readAsDataURL(file);
+}
+
+/* avatar: center-cropped square, small — cheap to store & sync */
+function compressAvatar(file, cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const size=256, side=Math.min(img.width,img.height);
+      const sx=(img.width-side)/2, sy=(img.height-side)/2;
+      const c=document.createElement('canvas'); c.width=c.height=size;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      cb(c.toDataURL('image/jpeg',0.82));
+    };
+    img.onerror=()=>cb(null);
+    img.src=e.target.result;
+  };
+  reader.onerror=()=>cb(null);
+  reader.readAsDataURL(file);
+}
+
+/* inner HTML for an avatar circle: photo if the person has one, else their
+   initial. Works for the signed-in user (avatar/avatarUrl) and friends. */
+function avatarInner(o){
+  const src=(o && (o.avatar || o.avatarUrl)) || '';
+  if(src) return `<img src="${esc(src)}" alt="" class="av-img"/>`;
+  return esc(((o&&o.name)||'?').trim().charAt(0).toUpperCase()||'?');
 }
 
 /* ---------- rating widget ---------- */
@@ -1144,9 +1181,8 @@ function renderFollowRow(){
     <span class="fr-lbl">Following</span>
     <div class="fr-chips">
       ${fr.map(f=>{
-        const init=(f.name||'?').trim().charAt(0).toUpperCase();
         return `<span class="fr-chip" title="${esc(f.name)}">
-          <span class="fr-av">${esc(init)}</span>
+          <span class="fr-av">${avatarInner(f)}</span>
           <span class="fr-handle">@${esc(f.handle)}</span>
           <button type="button" class="fr-x" data-friend-remove="${esc(f.handle)}" aria-label="Unfollow ${esc(f.handle)}" title="Unfollow">×</button>
         </span>`;
@@ -1188,11 +1224,10 @@ function renderActivityFeed(){
   wrap.innerHTML=items.slice(0,30).map(it=>{
     const p=Places.byId(it.placeId);
     const pName=p?p.name:it.placeId.replace(/-/g,' ');
-    const init=(it.friend.name||'?').trim().charAt(0).toUpperCase();
     const action=it.rating?`rated`:`logged`;
     const placeBtn=p?`<button type="button" class="af-place" data-place-detail="${esc(it.placeId)}">${esc(pName)}</button>`:`<span class="af-place">${esc(pName)}</span>`;
     return `<article class="af-item">
-      <span class="af-av">${esc(init)}</span>
+      <span class="af-av">${avatarInner(it.friend)}</span>
       <div class="af-body">
         <div class="af-line">
           <b>${esc(it.friend.name.split(' ')[0])}</b> ${action} ${placeBtn}
@@ -1250,7 +1285,7 @@ function renderProfileUI(){
   const sf=document.querySelector('[data-signin-foot]');
   document.body.classList.toggle('signed-in',!!p);
   if(p){
-    document.querySelector('[data-avatar]').textContent=(p.name||'?').trim().charAt(0).toUpperCase()||'?';
+    document.querySelector('[data-avatar]').innerHTML=avatarInner(p);
     document.querySelector('[data-profile-handle]').textContent='@'+(p.handle||slugify(p.name));
     document.querySelector('[data-profile-name]').textContent=p.name;
     document.querySelector('[data-profile-stat]').textContent=`${Entries.count()} plates rated · ${Friends.count()} friends`;
@@ -1282,7 +1317,6 @@ function renderProfile(){
   }
 
   const handle=p.handle||slugify(p.name);
-  const init=(p.name||'?').trim().charAt(0).toUpperCase()||'?';
   const all=Entries.all();
   const rated=Object.entries(all).filter(([,e])=>e.rating);
   const total=rated.length;
@@ -1306,7 +1340,11 @@ function renderProfile(){
   wrap.innerHTML=`
     <div class="pfp-card">
       <div class="pfp-id">
-        <div class="pfp-avatar">${esc(init)}</div>
+        <label class="pfp-avatar" title="Change photo">
+          ${avatarInner(p)}
+          <input type="file" accept="image/*" data-avatar-input hidden>
+          <span class="pfp-avatar-cam" aria-hidden="true">✎</span>
+        </label>
         <div class="pfp-idbody">
           <h3 class="pfp-name">${esc(p.name)}</h3>
           <div class="pfp-handle">@${esc(handle)}</div>
@@ -2137,6 +2175,20 @@ function initActions(){
   });
   const fi=document.querySelector('[data-friend-input]');
   fi && fi.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); importCode(fi.value); } });
+
+  // avatar photo: pick → compress → store locally (instant) → sync to cloud
+  document.addEventListener('change',e=>{
+    const inp=e.target.closest('[data-avatar-input]'); if(!inp) return;
+    const file=inp.files&&inp.files[0]; if(!file) return;
+    inp.value='';
+    compressAvatar(file,(data)=>{
+      if(!data){ Toast.show('Could not read that image'); return; }
+      const prof=Profile.get()||{};
+      Profile.set({ ...prof, avatar:data });
+      Toast.show('Photo updated');
+      if(Sync.isCloud() && Sync.hasSession()) Sync.uploadAvatar(data);
+    });
+  });
 }
 
 /* ---------- boot ---------- */
