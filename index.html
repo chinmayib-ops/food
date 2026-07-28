@@ -35,6 +35,7 @@
       <a href="#logbook" data-nav="logbook">The Logbook</a>
       <a href="#stats" data-nav="stats">Stats</a>
       <a href="#friends" data-nav="friends">Friends</a>
+      <a href="#profile" data-nav="profile">Profile</a>
       <a href="#info" data-nav="info">Info</a>
       <a href="#" data-add-place>Add a place</a>
       <a href="#" class="spin-nav" data-spin-open>🫓 Spin</a>
@@ -55,6 +56,7 @@
       <div class="pm-stat" data-profile-stat>0 plates rated</div>
       <div class="pm-sync" data-sync-status>● offline</div>
       <hr/>
+      <button type="button" data-nav="profile">View full profile</button>
       <button type="button" data-share-open>Share my logbook</button>
       <button type="button" data-print>Print / save as PDF</button>
       <button type="button" data-signout>Sign out</button>
@@ -253,6 +255,19 @@
 
 </div><!-- /page:friends -->
 
+<hr class="dbl-rule"/>
+
+<!-- ============ PAGE: PROFILE ============ -->
+<div class="page" data-page="profile">
+<section class="profile-page" id="profile">
+  <div class="profile-head">
+    <div class="lbl">Your account</div>
+    <h2>Your <em>profile</em>.</h2>
+  </div>
+  <div class="profile-body" data-profile-page><!-- rendered by script.js --></div>
+</section>
+</div><!-- /page:profile -->
+
 <!-- ============ BOTTOM TAB BAR (mobile) ============ -->
 <nav class="bottom-nav" aria-label="Main navigation">
   <a href="#home" data-nav="home" class="bn-tab">
@@ -271,9 +286,9 @@
     <svg class="bn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6M17 14c2.8 0 5 1.8 5 4"/></svg>
     <span>Friends</span>
   </a>
-  <a href="#info" data-nav="info" class="bn-tab">
-    <svg class="bn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v0M12 11v5"/></svg>
-    <span>Info</span>
+  <a href="#profile" data-nav="profile" class="bn-tab">
+    <svg class="bn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <span>Profile</span>
   </a>
 </nav>
 
@@ -345,6 +360,24 @@
       <label class="modal-field"><span>Handle</span>
         <input type="text" name="handle" required maxlength="20" placeholder="anjali.m" /></label>
       <button type="submit" class="modal-cta">Save &amp; continue <span class="arrow">→</span></button>
+      <p class="modal-fine">Letters, numbers, dots &amp; dashes.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ EDIT-PROFILE MODAL (dismissable; local + cloud) ============ -->
+<div class="modal-backdrop" data-modal="editprofile" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editprofile-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <div class="modal-eyebrow">Your profile</div>
+    <h2 id="editprofile-title">Edit your <em>name</em> &amp; handle.</h2>
+    <p class="modal-sub">This is how friends find and follow you.</p>
+    <form data-editprofile-form>
+      <label class="modal-field"><span>Display name</span>
+        <input type="text" name="name" required maxlength="40" placeholder="Anjali Mehta" /></label>
+      <label class="modal-field"><span>Handle</span>
+        <input type="text" name="handle" required maxlength="20" placeholder="anjali.m" /></label>
+      <button type="submit" class="modal-cta">Save changes <span class="arrow">→</span></button>
       <p class="modal-fine">Letters, numbers, dots &amp; dashes.</p>
     </form>
   </div>
