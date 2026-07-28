@@ -1,0 +1,33 @@
+name: Keep Supabase warm
+
+# Supabase's free tier pauses a project after ~7 days with no requests.
+# This pings the public catalogue once a day so the backend stays awake.
+# It uses the anon (publishable) key already in config.js — that key is
+# public by design, so there are no secrets to set up.
+#
+# NOTE: scheduled workflows only run from the repository's DEFAULT branch,
+# so this takes effect once it's merged into main.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # daily, 06:17 UTC
+  workflow_dispatch:        # allow a manual run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping Supabase REST
+        run: |
+          URL=$(grep -oP 'SUPABASE_URL:\s*"\K[^"]+' config.js)
+          KEY=$(grep -oP 'SUPABASE_ANON_KEY:\s*"\K[^"]+' config.js)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "No Supabase config found in config.js — nothing to ping."
+            exit 0
+          fi
+          CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "$URL/rest/v1/places?select=id&limit=1" -H "apikey: $KEY")
+          echo "Supabase responded: HTTP $CODE"
+          # 2xx keeps the project active; anything else is a heads-up, not a hard fail
+          case "$CODE" in 2*) exit 0 ;; *) echo "::warning::unexpected status $CODE" ; exit 0 ;; esac

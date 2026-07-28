@@ -193,7 +193,10 @@ const Sync = (function(){
     me=user;
     profileRow=await C.DB.getProfile(user.id);
     if(!profileRow){ openModal('handle'); return false; }
-    Profile.set({ name:profileRow.name, handle:profileRow.handle, id:user.id, cloud:true, joinedAt:new Date().toISOString() });
+    // joinedAt comes from the DB's created_at (authoritative), so "member
+    // since" on the profile page reflects the real sign-up date, not now.
+    Profile.set({ name:profileRow.name, handle:profileRow.handle, id:user.id, cloud:true,
+      joinedAt: profileRow.created_at || new Date().toISOString() });
     return true;
   }
   async function saveProfile(name, handle){
@@ -202,9 +205,17 @@ const Sync = (function(){
     if(!handle){ Toast.show('Pick a handle'); return false; }
     if(await C.DB.handleTaken(handle, me.id)){ Toast.show('Handle <em>@'+esc(handle)+'</em> is taken'); return false; }
     const err=await C.DB.upsertProfile({ id:me.id, name, handle });
-    if(err){ Toast.show('Could not save profile'); return false; }
+    if(err){
+      // a unique-violation means someone grabbed the handle between our
+      // check and our write (race) — say so instead of a generic error
+      const dup = err.code==='23505' || /duplicate|unique|handle/i.test(err.message||'');
+      Toast.show(dup ? 'Handle <em>@'+esc(handle)+'</em> is taken' : 'Could not save profile');
+      return false;
+    }
+    const prior=Profile.get();
     profileRow={ id:me.id, name, handle };
-    Profile.set({ name, handle, id:me.id, cloud:true, joinedAt:new Date().toISOString() });
+    Profile.set({ name, handle, id:me.id, cloud:true,
+      joinedAt:(prior&&prior.joinedAt) || new Date().toISOString() });
     await pull();
     C.Realtime.subscribe(onRealtime);
     return true;
