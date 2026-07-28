@@ -1,0 +1,29 @@
+name: CI
+
+# Guards against the class of bug that silently broke the whole app once
+# (a duplicate `const` = a syntax error that only shows up at runtime).
+# `node --check` is the hard gate; eslint adds a few correctness rules.
+# Zero build tooling required — eslint runs straight from npx.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check (node --check)
+        run: |
+          for f in script.js supabase.js config.js sw.js; do
+            echo "checking $f"
+            node --check "$f"
+          done
+
+      - name: Lint (eslint)
+        run: npx --yes eslint@9 .
