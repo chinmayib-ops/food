@@ -184,4 +184,73 @@ begin
   end if;
 end $$;
 
+-- ============================================================
+-- HARDENING — value constraints, storage limits, photo cleanup
+-- Added post-launch. Safe to re-run.
+-- RLS controls *who* can write a row; these control *what* a row may
+-- contain, so someone hitting the public REST API with the anon key
+-- can't store a rating of 999, a multi-megabyte note, or a junk handle.
+-- CHECKs are added NOT VALID so they enforce on every new insert/update
+-- without failing the script against rows that already exist.
+-- ============================================================
+
+-- entries: rating must be a real 0–5 score; keep notes sane
+alter table public.entries drop constraint if exists entries_rating_range;
+alter table public.entries add  constraint entries_rating_range
+  check (rating >= 0 and rating <= 5) not valid;
+alter table public.entries drop constraint if exists entries_note_len;
+alter table public.entries add  constraint entries_note_len
+  check (char_length(coalesce(note, '')) <= 2000) not valid;
+
+-- profiles: a handle is a slug; a name is short
+alter table public.profiles drop constraint if exists profiles_handle_fmt;
+alter table public.profiles add  constraint profiles_handle_fmt
+  check (handle ~ '^[a-z0-9._-]{1,40}$') not valid;
+alter table public.profiles drop constraint if exists profiles_name_len;
+alter table public.profiles add  constraint profiles_name_len
+  check (char_length(name) between 1 and 80) not valid;
+
+-- places: user-addable, so cap the free-text fields
+alter table public.places drop constraint if exists places_name_len;
+alter table public.places add  constraint places_name_len
+  check (char_length(name) between 1 and 300) not valid;
+alter table public.places drop constraint if exists places_hood_len;
+alter table public.places add  constraint places_hood_len
+  check (char_length(hood) between 1 and 200) not valid;
+
+-- storage: cap dish photos at 3 MB and to real image types
+update storage.buckets
+   set file_size_limit    = 3145728,
+       allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp']
+ where id = 'dish-photos';
+
+-- storage cleanup: when an entry's photo is replaced or the entry is
+-- deleted, remove the now-orphaned object so the bucket doesn't grow
+-- forever. The object name (<uid>/<file>) is the tail of its public URL.
+create or replace function public.cleanup_entry_photo()
+returns trigger language plpgsql security definer set search_path = public, storage as $$
+declare
+  gone boolean := false;
+begin
+  if tg_op = 'DELETE' then
+    gone := old.photo_url is not null;
+  else  -- UPDATE
+    gone := old.photo_url is not null and new.photo_url is distinct from old.photo_url;
+  end if;
+
+  if gone then
+    delete from storage.objects
+     where bucket_id = 'dish-photos'
+       and old.photo_url like '%/' || name;
+  end if;
+
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end $$;
+
+drop trigger if exists entries_photo_cleanup on public.entries;
+create trigger entries_photo_cleanup
+  after update or delete on public.entries
+  for each row execute function public.cleanup_entry_photo();
+
 -- Done.

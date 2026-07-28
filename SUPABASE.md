@@ -108,6 +108,30 @@ idempotent (`on conflict (id) do nothing`).
 Attribution is required by the ODbL — there's a small "© OpenStreetMap
 contributors" footer line included.
 
+## Production checklist
+
+The schema ships with data-integrity hardening baked in (value constraints,
+a 3 MB image-only limit on the photo bucket, and automatic cleanup of
+orphaned dish photos). **Re-run `schema.sql`** once to apply it to an existing
+project — it's idempotent and the new CHECKs are added `NOT VALID`, so they
+enforce on new writes without touching rows you already have.
+
+The remaining items live in the Supabase dashboard (code can't do them for you):
+
+- **Email provider** — the built-in email that sends magic links is a *testing*
+  service and throttles to a few messages an hour. Before inviting real users,
+  set a custom SMTP provider (Resend / Postmark / SendGrid — free tiers exist)
+  under **Authentication → Emails / SMTP**.
+- **Redirect URLs** — add your production URL under **Authentication → URL
+  Configuration** (see step 5) or sign-in silently fails in production.
+- **Bot protection** — enable Turnstile or hCaptcha under **Authentication →
+  Attack Protection** so bots can't mass-create accounts.
+- **Backups** — the free tier has no point-in-time recovery. If the data
+  matters, upgrade for PITR or schedule a periodic `pg_dump`.
+- **Keep-warm** — free projects pause after ~7 days idle. The repo includes a
+  daily GitHub Action (`.github/workflows/keepalive.yml`) that pings the
+  catalogue to keep it awake; it runs once merged to the default branch.
+
 ## Troubleshooting
 
 - *Still says “● offline”* → `config.js` keys missing/typo, or the
