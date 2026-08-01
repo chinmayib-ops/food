@@ -1916,6 +1916,48 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   font-family: var(--ff-disp); font-size: 26px;
   letter-spacing: 0; color: var(--ink); text-transform: none;
 }
+
+/* ---- segmented toggles (dine-in/delivery, accessibility) ---- */
+.entry-flags{
+  display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 20px;
+}
+.flag-group{ flex: 1 1 200px; }
+.flag-lbl{
+  display: block;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 8px;
+}
+.seg{ display: inline-flex; border: 1px solid var(--rule); }
+.seg-btn{
+  background: transparent; border: 0; cursor: pointer;
+  padding: 8px 14px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+  border-right: 1px solid var(--rule);
+  transition: background .15s, color .15s;
+}
+.seg-btn:last-child{ border-right: 0; }
+.seg-btn.on{ background: var(--ink); color: var(--paper); }
+.seg-btn:not(.on):hover{ color: var(--ink); }
+
+/* ---- place detail: maps link & accessibility ---- */
+.pd-maps{
+  display: inline-block; margin-top: 10px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--terra); text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.pd-maps:hover{ border-bottom-color: var(--terra); }
+.pd-access{
+  margin-top: 12px; padding: 8px 12px;
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase;
+  border-left: 3px solid var(--olive); background: var(--paper-2); color: var(--ink);
+}
+.pd-access.no{ border-left-color: var(--terra); color: var(--ink-soft); }
+
 .entry-photo-preview{ margin: 4px 0 18px; }
 .entry-photo-preview img{
   max-width: 100%; max-height: 220px; display: block; border: 1px solid var(--rule);
@@ -3557,6 +3599,66 @@ html, body{ max-width: 100%; }
 
 @media (max-width: 560px){
   .marquee span{ font-size: 9px; letter-spacing: .2em; padding: 0 10px; }
+}
+
+/* ============ FOOD-HOUSE QUIZ ============ */
+.quiz-progress{ height: 3px; background: var(--rule); margin: 4px 0 20px; }
+.quiz-progress span{ display: block; height: 100%; background: var(--terra); transition: width .3s ease; }
+.quiz-q{
+  font-family: var(--ff-disp); font-size: clamp(26px, 4vw, 38px);
+  line-height: 1.05; margin: 0 0 22px; color: var(--ink);
+}
+.quiz-opts{ display: flex; flex-direction: column; gap: 10px; }
+.quiz-opt{
+  text-align: left; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--rule);
+  padding: 16px 18px;
+  font-family: var(--ff-body); font-size: 16px; color: var(--ink);
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.quiz-opt:hover{ border-color: var(--terra); background: var(--paper-2); transform: translateX(3px); }
+
+.quiz-result{ text-align: center; padding: 8px 0; }
+.quiz-crest{ font-size: 64px; line-height: 1; margin: 4px 0 6px; }
+.quiz-house{
+  font-family: var(--ff-disp); font-size: clamp(34px, 6vw, 52px);
+  line-height: 1; margin: 0; color: var(--ink);
+}
+.quiz-house-tag{
+  font-family: var(--ff-mono); font-size: 12px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--terra);
+  margin: 10px 0 16px;
+}
+.quiz-house-blurb{
+  font-family: var(--ff-body); font-size: 17px; line-height: 1.55;
+  color: var(--ink-soft); max-width: 44ch; margin: 0 auto 18px;
+}
+.quiz-saved{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 20px;
+}
+.quiz-result-actions{ display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.quiz-result-actions .modal-cta{ width: auto; margin: 0; }
+
+/* profile: food-house module + badge */
+.pfp-house{
+  display: flex; align-items: center; gap: 16px;
+  border: 1px solid var(--ink); background: var(--paper);
+  padding: 16px 18px; margin-bottom: 22px;
+}
+.pfp-house-crest{ font-size: 38px; line-height: 1; flex-shrink: 0; }
+.pfp-house-body{ flex: 1; min-width: 0; }
+.pfp-house-name{
+  font-family: var(--ff-disp); font-size: 24px; color: var(--ink); line-height: 1.1;
+}
+.pfp-house-tag{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .12em; color: var(--ink-soft); margin-top: 2px;
+}
+.pfp-badge.house{ background: var(--terra); color: var(--paper); border-color: var(--terra); }
+@media (max-width: 480px){
+  .pfp-house{ flex-wrap: wrap; }
+  .pfp-house .pfp-action{ width: 100%; }
 }
 
 /* ============ PRINT / PDF ============ */

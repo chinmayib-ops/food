@@ -394,13 +394,17 @@
       <label class="modal-field"><span>Place name</span>
         <input type="text" name="name" required maxlength="50" placeholder="e.g. Taaza Thindi" /></label>
       <label class="modal-field"><span>Area / neighbourhood</span>
-        <input type="text" name="hood" required maxlength="40" placeholder="e.g. Banashankari" /></label>
+        <input type="text" name="hood" required maxlength="40" list="blr-areas" autocomplete="off" placeholder="Start typing — e.g. Banashankari" />
+        <span class="photo-fine">Pick from the list so the same area isn't logged two ways (BSK &amp; Banashankari).</span></label>
+      <datalist id="blr-areas" data-area-list></datalist>
       <div class="modal-row">
         <label class="modal-field"><span>Cuisine</span>
           <select name="cuisine" data-cuisine-select></select></label>
         <label class="modal-field"><span>Signature dish</span>
           <input type="text" name="dish" maxlength="40" placeholder="e.g. Set Dosa" /></label>
       </div>
+      <label class="modal-field"><span>Google Maps link <em>(optional — the surest way to pin the exact spot)</em></span>
+        <input type="url" name="gmaps" maxlength="400" inputmode="url" placeholder="Paste a maps.app.goo.gl or google.com/maps link" /></label>
       <label class="modal-check"><input type="checkbox" name="wishlist" /> <span>Add to my wishlist (haven't been yet)</span></label>
       <button type="submit" class="modal-cta">Add to the logbook <span class="arrow">→</span></button>
     </form>
@@ -418,36 +422,62 @@
       <input type="hidden" name="placeId" />
       <div class="entry-axes" data-entry-axes>
         <span class="modal-flabel">Rate it — <em>tap the stars</em></span>
-        <div class="axis-row" data-axis-row="food">
-          <span class="axis-lbl">Food quality</span>
-          <div class="rate axis-rate" data-axis="food" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate food quality">
+        <div class="axis-row" data-axis-row="taste">
+          <span class="axis-lbl">Taste</span>
+          <div class="rate axis-rate" data-axis="taste" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate taste">
             <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
           </div>
-          <span class="axis-val" data-axis-val="food">—</span>
+          <span class="axis-val" data-axis-val="taste">—</span>
         </div>
-        <div class="axis-row" data-axis-row="ambience">
-          <span class="axis-lbl">Ambience</span>
-          <div class="rate axis-rate" data-axis="ambience" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate ambience">
+        <div class="axis-row" data-axis-row="presentation">
+          <span class="axis-lbl">Presentation</span>
+          <div class="rate axis-rate" data-axis="presentation" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate presentation">
             <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
           </div>
-          <span class="axis-val" data-axis-val="ambience">—</span>
+          <span class="axis-val" data-axis-val="presentation">—</span>
         </div>
-        <div class="axis-row" data-axis-row="cleanliness">
-          <span class="axis-lbl">Cleanliness</span>
-          <div class="rate axis-rate" data-axis="cleanliness" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate cleanliness">
+        <div class="axis-row" data-axis-row="consistency">
+          <span class="axis-lbl">Consistency</span>
+          <div class="rate axis-rate" data-axis="consistency" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate consistency">
             <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
           </div>
-          <span class="axis-val" data-axis-val="cleanliness">—</span>
+          <span class="axis-val" data-axis-val="consistency">—</span>
         </div>
-        <div class="axis-row" data-axis-row="staff">
-          <span class="axis-lbl">Staff &amp; service</span>
-          <div class="rate axis-rate" data-axis="staff" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate staff and service">
+        <div class="axis-row" data-axis-row="service">
+          <span class="axis-lbl">Service</span>
+          <div class="rate axis-rate" data-axis="service" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate service">
             <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
           </div>
-          <span class="axis-val" data-axis-val="staff">—</span>
+          <span class="axis-val" data-axis-val="service">—</span>
+        </div>
+        <div class="axis-row" data-axis-row="ambiance">
+          <span class="axis-lbl">Ambiance</span>
+          <div class="rate axis-rate" data-axis="ambiance" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate ambiance">
+            <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+          <span class="axis-val" data-axis-val="ambiance">—</span>
         </div>
         <div class="axis-overall"><span>Overall</span><b data-entry-overall>—</b></div>
       </div>
+
+      <div class="entry-flags">
+        <div class="flag-group">
+          <span class="flag-lbl">How did you have it?</span>
+          <div class="seg" data-visit-seg>
+            <button type="button" class="seg-btn on" data-visit="dinein">Dine-in</button>
+            <button type="button" class="seg-btn" data-visit="delivery">Delivery</button>
+          </div>
+        </div>
+        <div class="flag-group">
+          <span class="flag-lbl">Accessibility-friendly?</span>
+          <div class="seg" data-access-seg>
+            <button type="button" class="seg-btn" data-access="yes">♿ Yes</button>
+            <button type="button" class="seg-btn" data-access="no">No</button>
+            <button type="button" class="seg-btn on" data-access="unknown">Not sure</button>
+          </div>
+        </div>
+      </div>
+
       <label class="modal-field"><span>Notes</span>
         <textarea name="note" rows="3" maxlength="600" placeholder="Best benne dosa I've had — crisp edges, generous chutney…"></textarea></label>
       <div class="modal-row">
@@ -601,6 +631,14 @@
     <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
     <input type="file" accept="image/*" data-menu-input hidden />
     <div data-place-body><!-- rendered by script.js --></div>
+  </div>
+</div>
+
+<!-- ============ FOOD-HOUSE QUIZ MODAL ============ -->
+<div class="modal-backdrop" data-modal="quiz" hidden>
+  <div class="modal modal-wide modal-quiz" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+    <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <div data-quiz-body><!-- rendered by script.js --></div>
   </div>
 </div>
 

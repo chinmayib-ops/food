@@ -19,6 +19,19 @@ const FEATURED_ID = 'brahmins-coffee-bar';
 const CUISINES = ['South Indian','North Indian','Street Food','Café','Bakery',
   'Biryani','Chinese','Continental','Desserts','Seafood','Other'];
 
+/* canonical Bengaluru areas — the datalist normalizes name variants
+   (so "BSK" and "Banashankari" don't split one area into two). */
+const BLR_AREAS = ['Banashankari','Basavanagudi','Jayanagar','JP Nagar','Gandhi Bazaar',
+  'Malleshwaram','Rajajinagar','Vijayanagar','Yeshwanthpur','Sadashivanagar','Seshadripuram',
+  'Indiranagar','Koramangala','HSR Layout','BTM Layout','Bellandur','Marathahalli','Whitefield',
+  'Sarjapur Road','Electronic City','Domlur','Ulsoor','Frazer Town','Cox Town','Cooke Town',
+  'Shivajinagar','MG Road','Brigade Road','Church Street','Lavelle Road','Residency Road',
+  'Richmond Town','Cunningham Road','Vasanth Nagar','Jayamahal','Hebbal','RT Nagar','Yelahanka',
+  'Banaswadi','Kalyan Nagar','Kammanahalli','Ramamurthy Nagar','KR Puram','Mahadevapura',
+  'Rajarajeshwari Nagar','Kengeri','Nagarbhavi','Kumaraswamy Layout','Uttarahalli','Kanakapura Road',
+  'Bannerghatta Road','JP Nagar 7th Phase','Girinagar','Hanumanthanagar','Wilson Garden',
+  'Austin Town','Langford Town','Ashok Nagar','Commercial Street','Chickpet','Majestic','KR Market'];
+
 /* ---------- seed places (real Bengaluru spots, unrated) ---------- */
 const SEED_PLACES = [
   { id:'brahmins-coffee-bar', name:"Brahmin's Coffee Bar", hood:'Basavanagudi',    cuisine:'South Indian', dish:'Filter Coffee & Idli', lat:12.9430, lng:77.5730 },
@@ -233,6 +246,8 @@ const Sync = (function(){
         photo_url:(e.photo&&/^https?:/.test(e.photo))?e.photo:null,
         dishes:e.dishes||null, super_rated:!!e.superRated,
         ratings:e.ratings||null, price_per_head:e.pricePerHead||null,
+        accessible:(e.accessible===true||e.accessible===false)?e.accessible:null,
+        visit_type:e.visitType||null,
         updated_at:e.updatedAt||new Date().toISOString() }));
   }
 
@@ -253,6 +268,7 @@ const Sync = (function(){
         l.menuPhoto=p.menu_photo_url||null;
         l.menuUpdatedAt=p.menu_updated_at||null;
         l.menuUpdatedBy=p.menu_updated_by||null;
+        l.gmapsUrl=p.gmaps_url||null;
       });
       localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
       // my entries (cloud authoritative, but keep strictly-newer local edits)
@@ -260,7 +276,8 @@ const Sync = (function(){
       ce.forEach(r=>{ merged[r.place_id]={ rating:Number(r.rating)||0, note:r.note||'',
         photo:r.photo_url||null, visitedAt:r.visited_at||'', createdAt:r.updated_at, updatedAt:r.updated_at,
         dishes:r.dishes||null, superRated:!!r.super_rated,
-        ratings:r.ratings||null, pricePerHead:r.price_per_head||0 }; });
+        ratings:r.ratings||null, pricePerHead:r.price_per_head||0,
+        accessible:(typeof r.accessible==='boolean')?r.accessible:null, visitType:r.visit_type||null }; });
       Object.entries(local).forEach(([pid,e])=>{ const c=merged[pid];
         if(!c||new Date(e.updatedAt||0)>new Date(c.updatedAt||0)) merged[pid]=e; });
       localStorage.setItem(KEY_ENTRIES, JSON.stringify(merged));
@@ -276,7 +293,8 @@ const Sync = (function(){
           rating:Number(r.rating)||0, note:r.note||'',
           visitedAt:r.visited_at||'', updatedAt:r.updated_at,
           dishes:r.dishes||null, superRated:!!r.super_rated,
-          ratings:r.ratings||null, pricePerHead:r.price_per_head||0
+          ratings:r.ratings||null, pricePerHead:r.price_per_head||0,
+          accessible:(typeof r.accessible==='boolean')?r.accessible:null, visitType:r.visit_type||null
         }; });
         objs.push({ name:f.name, handle:f.handle, uid:f.id, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
       }
@@ -298,7 +316,8 @@ const Sync = (function(){
       if(entriesErr) console.error('[Sync.push] upsertEntries failed:', entriesErr);
       await C.DB.deleteEntriesExcept(me.id, rows.map(r=>r.place_id));
       const cps=Places.custom().map(p=>({ id:p.id,name:p.name,hood:p.hood,
-        cuisine:p.cuisine||null,dish:p.dish||null,lat:p.lat??null,lng:p.lng??null,created_by:me.id }));
+        cuisine:p.cuisine||null,dish:p.dish||null,lat:p.lat??null,lng:p.lng??null,
+        gmaps_url:p.gmapsUrl||null,created_by:me.id }));
       if(cps.length) await C.DB.upsertPlaces(cps);
       await C.DB.setWishlist(me.id, loadJSON(KEY_WISHLIST,[]));
       setStatus('cloud');
@@ -390,6 +409,7 @@ const Sync = (function(){
         l.menuPhoto=p.menu_photo_url||null;
         l.menuUpdatedAt=p.menu_updated_at||null;
         l.menuUpdatedBy=p.menu_updated_by||null;
+        l.gmapsUrl=p.gmaps_url||null;
       });
       if(changed){
         localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
@@ -547,6 +567,7 @@ function openPlaceDetail(placeId){
       <div class="pd-meta">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
       <h2 id="pd-title">${esc(p.name)}</h2>
       ${p.dish?`<div class="pd-dish-tag">Known for: <em>${esc(p.dish)}</em></div>`:''}
+      ${p.gmapsUrl?`<a class="pd-maps" href="${esc(p.gmapsUrl)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>`:''}
     </div>
 
     <div class="pd-stats">
@@ -666,14 +687,18 @@ async function fillPlaceStats(placeId, ag){
     valEl.hidden=false;
   }
 
-  // axis breakdown
+  // axis breakdown (falls back to you+friends when global stats are absent)
   const axesEl=document.querySelector('[data-pd-axes]');
-  const ax=stats&&stats.axes;
-  const rows=ax?[['Food','food'],['Ambience','ambience'],['Cleanliness','cleanliness'],['Staff','staff']]
-    .filter(([,k])=>ax[k]!=null).map(([lbl,k])=>({lbl,v:Number(ax[k])||0})):[];
-  if(axesEl && rows.length){
+  const ax=(stats&&stats.axes)||localAxisAverages(placeId);
+  const rows=ax?AXES.filter(k=>ax[k]!=null).map(k=>({lbl:AXIS_LABELS[k]||k,v:Number(ax[k])||0})).filter(r=>r.v>0):[];
+  // accessibility signal (global only)
+  const accTotal=stats&&Number(stats.access_total)||0;
+  const accYes=stats&&Number(stats.access_yes)||0;
+  const accHtml = accTotal ? `<div class="pd-access ${accYes/accTotal>=0.5?'yes':'no'}">
+      ♿ ${accYes>=accTotal?'Accessibility-friendly':accYes===0?'Not accessibility-friendly':`${accYes} of ${accTotal} found it accessible`}</div>` : '';
+  if(axesEl && (rows.length||accHtml)){
     axesEl.innerHTML=`
-      <h3>Rated on</h3>
+      ${rows.length?`<h3>Rated on</h3>
       <div class="pd-axis-bars">
         ${rows.map(r=>`
           <div class="pd-axis-bar">
@@ -681,10 +706,111 @@ async function fillPlaceStats(placeId, ag){
             <span class="pd-axis-track"><span class="pd-axis-fill" style="width:${(r.v/5)*100}%"></span></span>
             <span class="pd-axis-num">${fmt(r.v)}</span>
           </div>`).join('')}
-      </div>`;
+      </div>`:''}
+      ${accHtml}`;
     axesEl.hidden=false;
   }
 }
+
+/* axis averages across you + friends (offline / pre-migration fallback) */
+function localAxisAverages(placeId){
+  const acc={}; AXES.forEach(a=>acc[a]=[]);
+  const push=e=>{ const r=e&&e.ratings; if(r) AXES.forEach(a=>{ if(r[a]>0) acc[a].push(Number(r[a])); }); };
+  push(Entries.get(placeId));
+  Friends.all().forEach(f=>push((f.entries||{})[placeId]));
+  const out={}; let any=false;
+  AXES.forEach(a=>{ if(acc[a].length){ out[a]=Math.round(acc[a].reduce((x,y)=>x+y,0)/acc[a].length*10)/10; any=true; } });
+  return any?out:null;
+}
+
+/* ============================================================
+   FOOD-HOUSE QUIZ — a short taste-personality quiz that sorts
+   you into one of four houses (Discord/Sorting-Hat style).
+   Result is stored on the local profile as `foodHouse`.
+   ============================================================ */
+const HOUSES={
+  purist:{ name:'The Purist', crest:'☕', tag:'Tradition, done right.',
+    blurb:"You revere the classics — filter coffee, benne dosa, the joints that have nailed one thing for decades. Authenticity beats novelty every single time." },
+  explorer:{ name:'The Explorer', crest:'🧭', tag:'Always the next plate.',
+    blurb:"New cuisines, new neighbourhoods, the place that opened last Tuesday — you're first in the queue. Your map of the city is never finished." },
+  comfort:{ name:'The Comfort Seeker', crest:'🍲', tag:'Warmth over flash.',
+    blurb:"Your regular table, a plate you can count on, honest value and a full heart. You know what you love, and you happily go back for it." },
+  connoisseur:{ name:'The Connoisseur', crest:'🍷', tag:'Craft in every detail.',
+    blurb:"Technique, balance, plating — you taste the intent behind a dish. A signature plate with a good story wins you over every time." }
+};
+const Quiz=(()=>{
+  const Q=[
+    { q:'Your perfect Bengaluru breakfast is…', opts:[
+      {t:'Filter coffee &amp; benne dosa at a 60-year-old joint', h:'purist'},
+      {t:'Whatever brunch spot just opened this week', h:'explorer'},
+      {t:'The same darshini you\'ve gone to for years', h:'comfort'},
+      {t:'A carefully plated modern-Indian tasting', h:'connoisseur'} ]},
+    { q:'Choosing where to eat, what really decides it?', opts:[
+      {t:'It\'s the real, authentic thing', h:'purist'},
+      {t:'I\'ve never tried it before', h:'explorer'},
+      {t:'I know I\'ll leave happy and full', h:'comfort'},
+      {t:'The chef\'s craft and technique', h:'connoisseur'} ]},
+    { q:'A friend asks for one recommendation. You send…', opts:[
+      {t:'An institution that\'s been perfect since 1972', h:'purist'},
+      {t:'The spot that opened last Tuesday', h:'explorer'},
+      {t:'Your dependable neighbourhood favourite', h:'comfort'},
+      {t:'A place with a story and a signature dish', h:'connoisseur'} ]},
+    { q:'A dish arrives. The first thing you judge?', opts:[
+      {t:'Is it made the way it\'s meant to be?', h:'purist'},
+      {t:'Is this something I\'ve never tasted?', h:'explorer'},
+      {t:'Does it just hit the spot?', h:'comfort'},
+      {t:'The balance, the plating, the detail', h:'connoisseur'} ]},
+    { q:'Money\'s no object tonight. You go for…', opts:[
+      {t:'The legendary thali that never changes', h:'purist'},
+      {t:'The most experimental menu in town', h:'explorer'},
+      {t:'Your all-time comfort meal, upgraded', h:'comfort'},
+      {t:'A degustation with the pairing', h:'connoisseur'} ]}
+  ];
+  let answers=[];
+  function open(){ answers=[]; render(0); openModal('quiz'); }
+  function render(i){
+    const body=document.querySelector('[data-quiz-body]'); if(!body) return;
+    const q=Q[i];
+    body.innerHTML=`
+      <div class="modal-eyebrow">Taste quiz · ${i+1} of ${Q.length}</div>
+      <div class="quiz-progress"><span style="width:${((i)/Q.length)*100}%"></span></div>
+      <h2 id="quiz-title" class="quiz-q">${q.q}</h2>
+      <div class="quiz-opts">
+        ${q.opts.map(o=>`<button type="button" class="quiz-opt" data-quiz-pick="${o.h}" data-quiz-q="${i}">${o.t}</button>`).join('')}
+      </div>`;
+  }
+  function pick(i, house){
+    answers[i]=house;
+    if(i+1<Q.length) render(i+1); else showResult();
+  }
+  function tally(){
+    const c={}; answers.forEach(h=>c[h]=(c[h]||0)+1);
+    // highest count; ties broken by question order (first house to reach the max)
+    let best=null, bestN=-1;
+    ['purist','explorer','comfort','connoisseur'].forEach(h=>{ if((c[h]||0)>bestN){ bestN=c[h]||0; best=h; } });
+    return best;
+  }
+  function showResult(){
+    const key=tally(); const h=HOUSES[key];
+    const prof=Profile.get();
+    if(prof) Profile.set({ ...prof, foodHouse:key });
+    const body=document.querySelector('[data-quiz-body]'); if(!body) return;
+    body.innerHTML=`
+      <div class="quiz-result">
+        <div class="modal-eyebrow">Your food house</div>
+        <div class="quiz-crest">${h.crest}</div>
+        <h2 class="quiz-house">${h.name}</h2>
+        <div class="quiz-house-tag">${h.tag}</div>
+        <p class="quiz-house-blurb">${h.blurb}</p>
+        ${prof?'<p class="quiz-saved">Saved to your profile ✓</p>':'<p class="quiz-saved">Sign in to keep this on your profile.</p>'}
+        <div class="quiz-result-actions">
+          <button type="button" class="modal-cta" data-modal-close>Wear it proudly →</button>
+          <button type="button" class="modal-secondary" data-quiz-restart>Retake</button>
+        </div>
+      </div>`;
+  }
+  return { open, pick };
+})();
 
 /* ---------- toast ---------- */
 const Toast=(()=>{ const el=document.querySelector('[data-toast]'); let t=null;
@@ -1407,6 +1533,7 @@ function renderProfile(){
 
   const handle=p.handle||slugify(p.name);
   const init=(p.name||'?').trim().charAt(0).toUpperCase()||'?';
+  const house=p.foodHouse&&HOUSES[p.foodHouse];
   const all=Entries.all();
   const rated=Object.entries(all).filter(([,e])=>e.rating);
   const total=rated.length;
@@ -1436,6 +1563,7 @@ function renderProfile(){
           <div class="pfp-handle">@${esc(handle)}</div>
           <div class="pfp-badges">
             <span class="pfp-badge ${cloud?'on':''}">${cloud?'☁ Synced across devices':'● On this device'}</span>
+            ${house?`<span class="pfp-badge house">${house.crest} ${esc(house.name)}</span>`:''}
             <span class="pfp-badge muted">Member since ${esc(joinedStr)}</span>
           </div>
         </div>
@@ -1448,6 +1576,16 @@ function renderProfile(){
         ${stat(wish,'Wishlist')}
         ${stat(adventurous+' ✦','Adventurous')}
       </div>
+    </div>
+
+    <div class="pfp-house">
+      <div class="pfp-house-crest">${house?house.crest:'🎲'}</div>
+      <div class="pfp-house-body">
+        <div class="pfp-mod-head">${house?'Your food house':"What's your food house?"}</div>
+        ${house?`<div class="pfp-house-name">${esc(house.name)}</div><div class="pfp-house-tag">${esc(house.tag)}</div>`
+          :`<div class="pfp-house-tag">Five quick questions → your taste personality.</div>`}
+      </div>
+      <button type="button" class="pfp-action" data-quiz-open>${house?'Retake':'Take the quiz →'}</button>
     </div>
 
     <div class="pfp-cols">
@@ -1582,7 +1720,8 @@ function openModal(name){
 }
 function closeModal(m){ m.hidden=true; }
 
-const AXES=['food','ambience','cleanliness','staff']; // dropped-to overall avg
+const AXES=['taste','presentation','consistency','service','ambiance']; // avg = overall
+const AXIS_LABELS={ taste:'Taste', presentation:'Presentation', consistency:'Consistency', service:'Service', ambiance:'Ambiance' };
 let pendingPhoto=undefined; // undefined = unchanged, null = removed
 function entryOverall(){
   const vals=AXES.map(a=>parseFloat(document.querySelector(`.axis-rate[data-axis="${a}"]`)?.dataset.value||'0')).filter(v=>v>0);
@@ -1623,6 +1762,11 @@ function openEntry(placeId){
     api.set(v); if(valLbl) valLbl.textContent=v?fmt(v):'—';
   });
   refreshEntryOverall();
+  // segmented toggles: dine-in/delivery and accessibility
+  const vt=e.visitType||'dinein';
+  document.querySelectorAll('[data-visit-seg] .seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.visit===vt));
+  const acc=(e.accessible===true)?'yes':(e.accessible===false)?'no':'unknown';
+  document.querySelectorAll('[data-access-seg] .seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.access===acc));
   openModal('entry');
 }
 
@@ -1640,6 +1784,10 @@ function initModals(){
   const cz=document.querySelector('[data-cuisine-select]'); if(cz) cz.innerHTML=opts;
   const fcz=document.querySelector('[data-filter-cuisine]');
   if(fcz) fcz.innerHTML='<option value="">All cuisines</option>'+opts;
+
+  // populate the Bengaluru-areas datalist for the add-place form
+  const al=document.querySelector('[data-area-list]');
+  if(al) al.innerHTML=BLR_AREAS.map(a=>`<option value="${esc(a)}"></option>`).join('');
 
   // cloud sign-in (email magic-link)
   const sf=document.querySelector('[data-signin-form]');
@@ -1704,10 +1852,23 @@ function initModals(){
     const name=(fd.get('name')||'').toString().trim();
     const hood=(fd.get('hood')||'').toString().trim();
     if(!name||!hood) return;
+    const gmapsUrl=(fd.get('gmaps')||'').toString().trim();
+    // dedup: same Maps link = same spot, even if named differently
+    if(gmapsUrl){
+      const norm=s=>s.trim().replace(/\/+$/,'').toLowerCase();
+      const dup=Places.registry().find(p=>p.gmapsUrl && norm(p.gmapsUrl)===norm(gmapsUrl));
+      if(dup){
+        af.reset(); closeModal(af.closest('[data-modal]'));
+        Toast.show('That spot is already logged as <em>'+esc(dup.name)+'</em>');
+        openPlaceDetail(dup.id);
+        return;
+      }
+    }
     let id=slugify(name+'-'+hood); if(Places.byId(id)) id+='-'+Math.random().toString(36).slice(2,5);
     const c=Places.coords({hood});
     Places.add({ id, name, hood, cuisine:(fd.get('cuisine')||'').toString(),
       dish:(fd.get('dish')||'').toString().trim(), custom:true,
+      gmapsUrl:gmapsUrl||undefined,
       lat:c?c[0]:undefined, lng:c?c[1]:undefined });
     if(fd.get('wishlist')) Wishlist.toggle(id);
     af.reset(); closeModal(af.closest('[data-modal]'));
@@ -1754,6 +1915,21 @@ function initModals(){
     });
   });
 
+  // segmented toggles (dine-in/delivery, accessibility) — one active per group
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('.seg-btn'); if(!b) return;
+    e.preventDefault();
+    b.parentElement.querySelectorAll('.seg-btn').forEach(x=>x.classList.toggle('on',x===b));
+  });
+
+  // food-house quiz
+  document.addEventListener('click',e=>{
+    if(e.target.closest('[data-quiz-open]')){ e.preventDefault(); Quiz.open(); return; }
+    const pk=e.target.closest('[data-quiz-pick]');
+    if(pk){ e.preventDefault(); Quiz.pick(parseInt(pk.dataset.quizQ,10), pk.dataset.quizPick); return; }
+    if(e.target.closest('[data-quiz-restart]')){ e.preventDefault(); Quiz.open(); }
+  });
+
   // entry: save / delete
   const ef=document.querySelector('[data-entry-form]');
   ef && ef.addEventListener('submit', async e=>{ e.preventDefault();
@@ -1762,8 +1938,11 @@ function initModals(){
     AXES.forEach(a=>{ const v=parseFloat(document.querySelector(`.axis-rate[data-axis="${a}"]`)?.dataset.value||'0')||0; if(v) ratings[a]=v; });
     const rating=entryOverall(); // overall = avg of the axes filled in
     const price=parseInt(ef.pricePerHead.value,10);
+    const visitType=document.querySelector('[data-visit-seg] .seg-btn.on')?.dataset.visit||'dinein';
+    const accSel=document.querySelector('[data-access-seg] .seg-btn.on')?.dataset.access||'unknown';
+    const accessible=accSel==='yes'?true:accSel==='no'?false:null;
     const patch={ rating, ratings, note:ef.note.value.trim(), visitedAt:ef.visitedAt.value||'',
-      pricePerHead:(Number.isFinite(price)&&price>0)?price:0 };
+      pricePerHead:(Number.isFinite(price)&&price>0)?price:0, visitType, accessible };
     if(pendingPhoto!==undefined){
       let ph=pendingPhoto; // null clears, string sets
       if(ph && /^data:/.test(ph) && Sync.isCloud() && Sync.hasSession()){

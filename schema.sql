@@ -173,19 +173,26 @@ alter table public.entries add column if not exists dishes jsonb;
 
 -- ============================================================
 -- MULTI-AXIS RATINGS + VALUE-FOR-MONEY  (per-entry)
--- ratings: { food, ambience, cleanliness, staff } each 0..5 (half-steps)
--- overall (the existing `rating` column) is the average of whatever axes
--- the user filled in, computed client-side on save.
+-- ratings: { taste, presentation, consistency, service, ambiance } each
+-- 0..5 (half-steps). overall (the existing `rating` column) is the average
+-- of whatever axes the user filled in, computed client-side on save.
+-- accessible: was it wheelchair/accessibility friendly (true/false/unknown).
+-- visit_type: 'dinein' or 'delivery'.
 -- ============================================================
 alter table public.entries add column if not exists ratings jsonb;
 alter table public.entries add column if not exists price_per_head integer;
+alter table public.entries add column if not exists accessible boolean;
+alter table public.entries add column if not exists visit_type text;
 
 -- ============================================================
--- CROWDSOURCED MENU PHOTO  (per-place, anyone can refresh it)
+-- CROWDSOURCED MENU PHOTO + MAP LINK  (per-place, anyone can refresh)
+-- gmaps_url disambiguates the same spot logged under different names
+-- (e.g. "BSK" vs "Banashankari").
 -- ============================================================
 alter table public.places add column if not exists menu_photo_url text;
 alter table public.places add column if not exists menu_updated_at timestamptz;
 alter table public.places add column if not exists menu_updated_by text;   -- handle, for display
+alter table public.places add column if not exists gmaps_url text;
 
 -- places: menu photo is crowdsourced, so any signed-in user may update a
 -- place row (not just its creator). Small friend-app tradeoff; lock to
@@ -209,13 +216,16 @@ returns jsonb language sql stable security definer set search_path = public as $
     'price_count',  (select count(*) from public.entries where place_id = pid and price_per_head > 0),
     'axes', (
       select jsonb_build_object(
-        'food',        round(avg((ratings->>'food')::numeric), 1),
-        'ambience',    round(avg((ratings->>'ambience')::numeric), 1),
-        'cleanliness', round(avg((ratings->>'cleanliness')::numeric), 1),
-        'staff',       round(avg((ratings->>'staff')::numeric), 1)
+        'taste',        round(avg((ratings->>'taste')::numeric), 1),
+        'presentation', round(avg((ratings->>'presentation')::numeric), 1),
+        'consistency',  round(avg((ratings->>'consistency')::numeric), 1),
+        'service',      round(avg((ratings->>'service')::numeric), 1),
+        'ambiance',     round(avg((ratings->>'ambiance')::numeric), 1)
       )
       from public.entries where place_id = pid and ratings is not null
     ),
+    'access_yes', (select count(*) from public.entries where place_id = pid and accessible is true),
+    'access_total', (select count(*) from public.entries where place_id = pid and accessible is not null),
     'dishes', (
       select coalesce(jsonb_agg(row_to_json(d)), '[]'::jsonb) from (
         select dish->>'name' as name,
