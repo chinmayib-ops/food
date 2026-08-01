@@ -416,24 +416,49 @@
     <p class="modal-sub" data-entry-sub>—</p>
     <form data-entry-form>
       <input type="hidden" name="placeId" />
-      <div class="entry-rate-block">
-        <span class="modal-flabel">Your rating</span>
-        <div class="rate entry-rate" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate this place">
-          <span class="rate-bg">★★★★★</span>
-          <span class="rate-fg" style="width:0%">★★★★★</span>
-          <span class="rate-hov" style="width:0%">★★★★★</span>
+      <div class="entry-axes" data-entry-axes>
+        <span class="modal-flabel">Rate it — <em>tap the stars</em></span>
+        <div class="axis-row" data-axis-row="food">
+          <span class="axis-lbl">Food quality</span>
+          <div class="rate axis-rate" data-axis="food" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate food quality">
+            <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+          <span class="axis-val" data-axis-val="food">—</span>
         </div>
-        <span class="entry-rate-val" data-entry-rateval>not rated</span>
+        <div class="axis-row" data-axis-row="ambience">
+          <span class="axis-lbl">Ambience</span>
+          <div class="rate axis-rate" data-axis="ambience" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate ambience">
+            <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+          <span class="axis-val" data-axis-val="ambience">—</span>
+        </div>
+        <div class="axis-row" data-axis-row="cleanliness">
+          <span class="axis-lbl">Cleanliness</span>
+          <div class="rate axis-rate" data-axis="cleanliness" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate cleanliness">
+            <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+          <span class="axis-val" data-axis-val="cleanliness">—</span>
+        </div>
+        <div class="axis-row" data-axis-row="staff">
+          <span class="axis-lbl">Staff &amp; service</span>
+          <div class="rate axis-rate" data-axis="staff" data-max="5" data-value="0" tabindex="0" role="slider" aria-label="Rate staff and service">
+            <span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:0%">★★★★★</span><span class="rate-hov" style="width:0%">★★★★★</span>
+          </div>
+          <span class="axis-val" data-axis-val="staff">—</span>
+        </div>
+        <div class="axis-overall"><span>Overall</span><b data-entry-overall>—</b></div>
       </div>
       <label class="modal-field"><span>Notes</span>
         <textarea name="note" rows="3" maxlength="600" placeholder="Best benne dosa I've had — crisp edges, generous chutney…"></textarea></label>
       <div class="modal-row">
         <label class="modal-field"><span>Date visited</span>
           <input type="date" name="visitedAt" /></label>
-        <label class="modal-field"><span>Photo of the dish</span>
-          <input type="file" name="photo" accept="image/*" data-photo-input />
-          <span class="photo-fine">Compressed &amp; stored on this device only.</span></label>
+        <label class="modal-field"><span>Price per head <em>(₹, optional)</em></span>
+          <input type="number" name="pricePerHead" min="0" max="100000" inputmode="numeric" placeholder="e.g. 250" /></label>
       </div>
+      <label class="modal-field"><span>Photo of the dish</span>
+        <input type="file" name="photo" accept="image/*" data-photo-input />
+        <span class="photo-fine">Compressed &amp; stored on this device only.</span></label>
       <div class="entry-photo-preview" data-photo-preview hidden>
         <img alt="dish preview" data-photo-img />
         <button type="button" class="photo-remove" data-photo-remove>Remove photo</button>
@@ -574,6 +599,7 @@
 <div class="modal-backdrop" data-modal="place" hidden>
   <div class="modal modal-place" role="dialog" aria-modal="true" aria-labelledby="pd-title">
     <button class="modal-close" data-modal-close type="button" aria-label="Close">×</button>
+    <input type="file" accept="image/*" data-menu-input hidden />
     <div data-place-body><!-- rendered by script.js --></div>
   </div>
 </div>

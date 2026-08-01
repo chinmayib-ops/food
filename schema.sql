@@ -172,7 +172,72 @@ alter table public.entries add column if not exists super_rated boolean not null
 alter table public.entries add column if not exists dishes jsonb;
 
 -- ============================================================
--- REALTIME — broadcast entry changes so friends' feeds live-update
+-- MULTI-AXIS RATINGS + VALUE-FOR-MONEY  (per-entry)
+-- ratings: { food, ambience, cleanliness, staff } each 0..5 (half-steps)
+-- overall (the existing `rating` column) is the average of whatever axes
+-- the user filled in, computed client-side on save.
+-- ============================================================
+alter table public.entries add column if not exists ratings jsonb;
+alter table public.entries add column if not exists price_per_head integer;
+
+-- ============================================================
+-- CROWDSOURCED MENU PHOTO  (per-place, anyone can refresh it)
+-- ============================================================
+alter table public.places add column if not exists menu_photo_url text;
+alter table public.places add column if not exists menu_updated_at timestamptz;
+alter table public.places add column if not exists menu_updated_by text;   -- handle, for display
+
+-- places: menu photo is crowdsourced, so any signed-in user may update a
+-- place row (not just its creator). Small friend-app tradeoff; lock to
+-- column-level later if vandalism ever becomes a problem.
+drop policy if exists places_update on public.places;
+create policy places_update on public.places for update to authenticated
+  using (true) with check (true);
+
+-- ============================================================
+-- PUBLIC PLACE STATS  (true crowdsourcing across ALL users)
+-- Returns only aggregates — no notes, no user identities — so it is safe
+-- to expose globally even though raw entries stay friends-only via RLS.
+-- Powers: "what to order", value-for-money, and the axis breakdown.
+-- ============================================================
+create or replace function public.place_public_stats(pid text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'overall_avg',  (select round(avg(rating)::numeric, 1) from public.entries where place_id = pid and rating > 0),
+    'rating_count', (select count(*) from public.entries where place_id = pid and rating > 0),
+    'avg_price',    (select round(avg(price_per_head)::numeric) from public.entries where place_id = pid and price_per_head > 0),
+    'price_count',  (select count(*) from public.entries where place_id = pid and price_per_head > 0),
+    'axes', (
+      select jsonb_build_object(
+        'food',        round(avg((ratings->>'food')::numeric), 1),
+        'ambience',    round(avg((ratings->>'ambience')::numeric), 1),
+        'cleanliness', round(avg((ratings->>'cleanliness')::numeric), 1),
+        'staff',       round(avg((ratings->>'staff')::numeric), 1)
+      )
+      from public.entries where place_id = pid and ratings is not null
+    ),
+    'dishes', (
+      select coalesce(jsonb_agg(row_to_json(d)), '[]'::jsonb) from (
+        select dish->>'name' as name,
+               round(avg((dish->>'rating')::numeric), 1) as avg,
+               count(*) as cnt
+        from public.entries e,
+             lateral jsonb_array_elements(coalesce(e.dishes, '[]'::jsonb)) as dish
+        where e.place_id = pid
+          and coalesce(dish->>'name', '') <> ''
+          and coalesce((dish->>'rating'), '0')::numeric > 0
+        group by dish->>'name'
+        order by avg desc
+        limit 12
+      ) d
+    )
+  );
+$$;
+grant execute on function public.place_public_stats(text) to anon, authenticated;
+
+-- ============================================================
+-- REALTIME — broadcast entry + place changes so feeds & the shared
+-- catalogue (new spots, refreshed menus) live-update for everyone
 -- ============================================================
 do $$
 begin
@@ -181,6 +246,12 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'entries'
   ) then
     alter publication supabase_realtime add table public.entries;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'places'
+  ) then
+    alter publication supabase_realtime add table public.places;
   end if;
 end $$;
 

@@ -1885,6 +1885,37 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   font-family: var(--ff-disp); font-size: 20px;
   font-style: italic; color: var(--terra);
 }
+
+/* ---- multi-axis rating block (entry modal) ---- */
+.entry-axes{
+  border: 1px solid var(--rule); padding: 16px 18px 14px; margin-bottom: 20px;
+}
+.entry-axes .modal-flabel{ margin-bottom: 14px; }
+.entry-axes .modal-flabel em{ color: var(--terra); font-style: italic; text-transform: none; letter-spacing: .02em; }
+.axis-row{
+  display: grid; grid-template-columns: 1fr auto 34px;
+  align-items: center; gap: 12px;
+  padding: 9px 0; border-top: 1px dashed var(--rule);
+}
+.axis-lbl{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
+}
+.axis-rate{ --star-sz: 22px; letter-spacing: 4px; }
+.axis-val{
+  font-family: var(--ff-disp); font-size: 17px;
+  color: var(--terra); text-align: right; font-style: italic;
+}
+.axis-overall{
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ink);
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft);
+}
+.axis-overall b{
+  font-family: var(--ff-disp); font-size: 26px;
+  letter-spacing: 0; color: var(--ink); text-transform: none;
+}
 .entry-photo-preview{ margin: 4px 0 18px; }
 .entry-photo-preview img{
   max-width: 100%; max-height: 220px; display: block; border: 1px solid var(--rule);
@@ -2953,6 +2984,86 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   color: var(--ink-soft); text-transform: uppercase;
   font-size: 10px; letter-spacing: .14em;
   min-width: 80px; text-align: right;
+}
+.pd-dish-row.top{ position: relative; }
+.pd-dish-crown{
+  position: absolute; top: -7px; left: 0;
+  font-family: var(--ff-mono); font-size: 8px;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--paper); background: var(--terra);
+  padding: 2px 6px;
+}
+.pd-dish-row.top .pd-dish-name{ padding-top: 6px; }
+
+/* ---- value-for-money chip ---- */
+.pd-value{
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
+  margin-top: 16px; padding: 12px 16px;
+  background: var(--paper-2); border-left: 3px solid var(--terra);
+}
+.pd-value-amt{
+  font-family: var(--ff-disp); font-size: 26px; color: var(--ink); line-height: 1;
+}
+.pd-value-amt small{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .12em; color: var(--ink-soft); text-transform: uppercase;
+}
+.pd-value-band{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--terra);
+}
+.pd-value-n{
+  margin-left: auto;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+}
+
+/* ---- crowdsourced menu photo ---- */
+.pd-menu-head{
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 14px;
+}
+.pd-menu-head h3{ border: 0; padding: 0; margin: 0; }
+.pd-menu-fresh{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.pd-menu-fresh.stale{ color: var(--terra); }
+.pd-menu-photo{
+  display: block; border: 1px solid var(--rule); margin-bottom: 10px;
+}
+.pd-menu-photo img{
+  display: block; width: 100%; max-height: 360px; object-fit: contain;
+  background: var(--paper-2);
+}
+.pd-menu-empty{
+  border: 1px dashed var(--rule); padding: 22px 18px; text-align: center;
+}
+.pd-menu-empty p{
+  font-family: var(--ff-body); font-style: italic; font-size: 15px;
+  color: var(--ink-soft); margin: 0 0 14px;
+}
+
+/* ---- axis breakdown bars ---- */
+.pd-axis-bars{ display: flex; flex-direction: column; gap: 10px; }
+.pd-axis-bar{
+  display: grid; grid-template-columns: 92px 1fr 32px;
+  align-items: center; gap: 12px;
+}
+.pd-axis-lbl{
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.pd-axis-track{
+  height: 6px; background: var(--rule); position: relative; overflow: hidden;
+}
+.pd-axis-fill{
+  position: absolute; inset: 0 auto 0 0; background: var(--terra);
+}
+.pd-axis-num{
+  font-family: var(--ff-disp); font-size: 15px; color: var(--terra);
+  text-align: right;
 }
 
 .pd-review{

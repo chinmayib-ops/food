@@ -74,13 +74,16 @@ const Entries = {
   all(){ return loadJSON(KEY_ENTRIES,{}); },
   get(id){ return this.all()[id] || null; },
   rating(id){ const e=this.get(id); return e ? (e.rating||0) : 0; },
-  /* partial update; pass {rating,note,photo,visitedAt} */
+  /* partial update; pass {rating,ratings,pricePerHead,note,photo,visitedAt}
+     `ratings` holds the axes {food,ambience,cleanliness,staff}; `rating`
+     stays the canonical overall (avg of axes, or a direct quick-rate). */
   set(id, patch){
     const all = this.all();
     const prev = all[id] || { createdAt:new Date().toISOString() };
     const next = { ...prev, ...patch, updatedAt:new Date().toISOString() };
-    // an entry with no rating, note or photo is empty → delete
-    if (!next.rating && !(next.note||'').trim() && !next.photo){ delete all[id]; }
+    const hasAxes = next.ratings && Object.values(next.ratings).some(v=>v>0);
+    // empty entry (no signal at all) → delete
+    if (!next.rating && !hasAxes && !next.pricePerHead && !(next.note||'').trim() && !next.photo && !(next.dishes&&next.dishes.length)){ delete all[id]; }
     else all[id] = next;
     saveJSON(KEY_ENTRIES, all);
     emit('data:change');
@@ -223,11 +226,13 @@ const Sync = (function(){
 
   function localEntryRows(){
     return Object.entries(Entries.all())
-      .filter(([,e])=>e.rating||e.note||e.photo||(e.dishes&&e.dishes.length))
+      .filter(([,e])=>e.rating||e.note||e.photo||(e.dishes&&e.dishes.length)||
+        (e.ratings&&Object.values(e.ratings).some(v=>v>0))||e.pricePerHead)
       .map(([pid,e])=>({ user_id:me.id, place_id:pid, rating:e.rating||0,
         note:e.note||'', visited_at:e.visitedAt||null,
         photo_url:(e.photo&&/^https?:/.test(e.photo))?e.photo:null,
         dishes:e.dishes||null, super_rated:!!e.superRated,
+        ratings:e.ratings||null, price_per_head:e.pricePerHead||null,
         updated_at:e.updatedAt||new Date().toISOString() }));
   }
 
@@ -235,16 +240,27 @@ const Sync = (function(){
     if(!cloud()||!me) return;
     setStatus('syncing');
     try{
-      // places (union into local custom)
+      // places (union into local custom; carry crowdsourced menu fields)
       const cp=await C.DB.listPlaces();
-      const lc=Places.custom(); const seen=new Set(lc.map(p=>p.id));
-      cp.forEach(p=>{ if(!seen.has(p.id)&&!window.__SEED_IDS.has(p.id))
-        lc.push({id:p.id,name:p.name,hood:p.hood,cuisine:p.cuisine,dish:p.dish,lat:p.lat,lng:p.lng,custom:true}); });
+      const lc=Places.custom(); const byId=new Map(lc.map(p=>[p.id,p]));
+      cp.forEach(p=>{
+        let l=byId.get(p.id);
+        if(!l){
+          if(window.__SEED_IDS.has(p.id) && !p.menu_photo_url) return; // pure seed, no overlay needed
+          l={id:p.id,name:p.name,hood:p.hood,cuisine:p.cuisine,dish:p.dish,lat:p.lat,lng:p.lng,custom:true};
+          lc.push(l); byId.set(p.id,l);
+        }
+        l.menuPhoto=p.menu_photo_url||null;
+        l.menuUpdatedAt=p.menu_updated_at||null;
+        l.menuUpdatedBy=p.menu_updated_by||null;
+      });
       localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
       // my entries (cloud authoritative, but keep strictly-newer local edits)
       const ce=await C.DB.listMyEntries(me.id), local=Entries.all(), merged={};
       ce.forEach(r=>{ merged[r.place_id]={ rating:Number(r.rating)||0, note:r.note||'',
-        photo:r.photo_url||null, visitedAt:r.visited_at||'', createdAt:r.updated_at, updatedAt:r.updated_at }; });
+        photo:r.photo_url||null, visitedAt:r.visited_at||'', createdAt:r.updated_at, updatedAt:r.updated_at,
+        dishes:r.dishes||null, superRated:!!r.super_rated,
+        ratings:r.ratings||null, pricePerHead:r.price_per_head||0 }; });
       Object.entries(local).forEach(([pid,e])=>{ const c=merged[pid];
         if(!c||new Date(e.updatedAt||0)>new Date(c.updatedAt||0)) merged[pid]=e; });
       localStorage.setItem(KEY_ENTRIES, JSON.stringify(merged));
@@ -259,7 +275,8 @@ const Sync = (function(){
         fe.forEach(r=>{ en[r.place_id]={
           rating:Number(r.rating)||0, note:r.note||'',
           visitedAt:r.visited_at||'', updatedAt:r.updated_at,
-          dishes:r.dishes||null, superRated:!!r.super_rated
+          dishes:r.dishes||null, superRated:!!r.super_rated,
+          ratings:r.ratings||null, pricePerHead:r.price_per_head||0
         }; });
         objs.push({ name:f.name, handle:f.handle, uid:f.id, entries:en, places:[], wishlist:[], addedAt:new Date().toISOString(), cloud:true });
       }
@@ -292,6 +309,29 @@ const Sync = (function(){
     if(!cloud()||!me) return dataURL;
     const url=await C.Storage.uploadPhoto(me.id, placeId, dataURL);
     return url||dataURL;
+  }
+
+  /* crowdsourced menu photo — upload, ensure the place row exists, then
+     stamp the menu fields. Anyone signed-in can refresh any place's menu. */
+  async function updateMenuPhoto(place, dataURL){
+    if(!cloud()||!me){ Toast.show('Sign in to add a menu photo'); return false; }
+    Toast.show('Uploading menu…');
+    const url=await C.Storage.uploadPhoto(me.id, 'menu-'+place.id, dataURL);
+    if(!url){ Toast.show('Could not upload the menu photo'); return false; }
+    // make sure the place exists in the shared catalogue before stamping it
+    await C.DB.upsertPlaces([{ id:place.id, name:place.name, hood:place.hood,
+      cuisine:place.cuisine||null, dish:place.dish||null,
+      lat:place.lat??null, lng:place.lng??null, created_by:me.id }]);
+    const handle=(Profile.get()||{}).handle||null;
+    const err=await C.DB.updatePlaceMenu(place.id, url, handle);
+    if(err){ Toast.show('Could not save the menu'); return false; }
+    await pull();
+    Toast.show('Menu photo updated · thanks!');
+    return true;
+  }
+  function placeStats(placeId){
+    if(!cloud()) return Promise.resolve(null);
+    return C.DB.placeStats(placeId);
   }
 
   async function addFriendByHandle(h){
@@ -337,14 +377,21 @@ const Sync = (function(){
       if(!cp || !cp.length) return;
       const lc = Places.custom();
       const seen = new Set(lc.map(p=>p.id));
-      let added = 0;
+      const byId = new Map(lc.map(p=>[p.id,p]));
+      let changed = 0;
       cp.forEach(p=>{
-        if(!seen.has(p.id) && !window.__SEED_IDS.has(p.id)){
-          lc.push({ id:p.id, name:p.name, hood:p.hood, cuisine:p.cuisine, dish:p.dish, lat:p.lat, lng:p.lng, custom:true });
-          added++;
+        let l=byId.get(p.id);
+        if(!l){
+          if(window.__SEED_IDS.has(p.id) && !p.menu_photo_url) return;
+          l={ id:p.id, name:p.name, hood:p.hood, cuisine:p.cuisine, dish:p.dish, lat:p.lat, lng:p.lng, custom:true };
+          lc.push(l); byId.set(p.id,l); changed++;
         }
+        if(p.menu_photo_url!==(l.menuPhoto||null)) changed++;
+        l.menuPhoto=p.menu_photo_url||null;
+        l.menuUpdatedAt=p.menu_updated_at||null;
+        l.menuUpdatedBy=p.menu_updated_by||null;
       });
-      if(added){
+      if(changed){
         localStorage.setItem(KEY_PLACES, JSON.stringify(lc));
         document.dispatchEvent(new CustomEvent('data:change'));
       }
@@ -375,7 +422,8 @@ const Sync = (function(){
   }
 
   return { boot, pull, schedulePush, saveProfile, addFriendByHandle,
-           removeFriendCloud, uploadPendingPhoto, isCloud:cloud, hasSession:()=>!!me };
+           removeFriendCloud, uploadPendingPhoto, updateMenuPhoto, placeStats,
+           isCloud:cloud, hasSession:()=>!!me };
 })();
 
 /* ---------- aggregate (you + friends) ---------- */
@@ -460,6 +508,7 @@ function timeAgo(date){
   return Math.floor(s/86400/365)+' yr ago';
 }
 
+let pdCurrentPlace=null; // place shown in the detail modal (for menu upload)
 function openPlaceDetail(placeId){
   const p=Places.byId(placeId); if(!p) return;
   const ag=placeAggregate(placeId);
@@ -490,6 +539,9 @@ function openPlaceDetail(placeId){
 
   const onWish=Wishlist.has(placeId);
 
+  pdCurrentPlace=p;
+  const menuStale = p.menuUpdatedAt && (Date.now()-new Date(p.menuUpdatedAt).getTime()) > 120*86400*1000;
+
   body.innerHTML=`
     <div class="pd-header">
       <div class="pd-meta">${esc(p.hood)}${p.cuisine?' · '+esc(p.cuisine):''}</div>
@@ -515,6 +567,8 @@ function openPlaceDetail(placeId){
       </div>
     </div>
 
+    <div class="pd-value" data-pd-value hidden></div>
+
     ${callouts}
     ${recentBlurb?`<div class="pd-recent">${recentBlurb}</div>`:''}
 
@@ -523,21 +577,24 @@ function openPlaceDetail(placeId){
       <button type="button" class="pd-act" data-edit-entry="${esc(placeId)}">${mine?'Edit your review':'Add note &amp; photo'}</button>
     </div>
 
-    ${ag.dishes.length?`
-      <div class="pd-section">
-        <h3>By the dish</h3>
-        <div class="pd-dishes">
-          ${ag.dishes.map(d=>`
-            <div class="pd-dish-row">
-              <span class="pd-dish-name">${esc(d.name)}</span>
-              <span class="pd-dish-stars"><span class="rating"><span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(d.avg/5)*100}%">★★★★★</span></span></span>
-              <span class="pd-dish-avg">${fmt(d.avg)}</span>
-              <span class="pd-dish-count">${d.count} ${d.count===1?'review':'reviews'}</span>
-            </div>
-          `).join('')}
-        </div>
+    <div class="pd-section pd-menu">
+      <div class="pd-menu-head">
+        <h3>The menu</h3>
+        ${p.menuPhoto?`<span class="pd-menu-fresh${menuStale?' stale':''}">Updated ${esc(timeAgo(p.menuUpdatedAt))}${p.menuUpdatedBy?` · @${esc(p.menuUpdatedBy)}`:''}${menuStale?' · may be out of date':''}</span>`:''}
       </div>
-    `:''}
+      ${p.menuPhoto?`
+        <a class="pd-menu-photo" href="${esc(p.menuPhoto)}" target="_blank" rel="noopener"><img src="${esc(p.menuPhoto)}" alt="Menu at ${esc(p.name)}" loading="lazy"/></a>
+        <button type="button" class="link-btn" data-menu-add="${esc(placeId)}">Menu changed? Snap the latest ↗</button>
+      `:`
+        <div class="pd-menu-empty">
+          <p>No menu photo yet — be the first to add one. It updates for everyone.</p>
+          <button type="button" class="pd-act" data-menu-add="${esc(placeId)}">📷 Add the menu</button>
+        </div>
+      `}
+    </div>
+
+    <div class="pd-section pd-order" data-pd-order hidden></div>
+    <div class="pd-section pd-axes" data-pd-axes hidden></div>
 
     ${ag.reviews.length?`
       <div class="pd-section">
@@ -560,6 +617,73 @@ function openPlaceDetail(placeId){
     `:`<div class="pd-empty">No ratings yet — be the first to log a plate here.</div>`}
   `;
   openModal('place');
+
+  // global crowdsourced stats (all users) fill in async; fall back to the
+  // you+friends aggregate when offline so the sections aren't empty.
+  fillPlaceStats(placeId, ag);
+}
+
+/* what-to-order, value-for-money & axis breakdown — global when signed in,
+   friends-only fallback otherwise. Injected after the modal opens. */
+async function fillPlaceStats(placeId, ag){
+  let stats=null;
+  try{ stats=await Sync.placeStats(placeId); }catch{ stats=null; }
+  // guard: user may have closed the modal or opened another place
+  if(document.querySelector('[data-modal="place"]').hidden) return;
+  if(pdCurrentPlace && pdCurrentPlace.id!==placeId) return;
+
+  const dishes = (stats&&stats.dishes&&stats.dishes.length)
+    ? stats.dishes.map(d=>({name:d.name, avg:Number(d.avg)||0, count:Number(d.cnt)||0}))
+    : ag.dishes;
+  const orderEl=document.querySelector('[data-pd-order]');
+  if(orderEl && dishes.length){
+    const scope = (stats&&stats.dishes&&stats.dishes.length)?'everyone':'your network';
+    orderEl.innerHTML=`
+      <h3>What to order <span class="pd-section-count">${scope}</span></h3>
+      <div class="pd-dishes">
+        ${dishes.map((d,i)=>`
+          <div class="pd-dish-row${i===0?' top':''}">
+            ${i===0?'<span class="pd-dish-crown">★ Top pick</span>':''}
+            <span class="pd-dish-name">${esc(d.name)}</span>
+            <span class="pd-dish-stars"><span class="rating"><span class="rate-bg">★★★★★</span><span class="rate-fg" style="width:${(d.avg/5)*100}%">★★★★★</span></span></span>
+            <span class="pd-dish-avg">${fmt(d.avg)}</span>
+            <span class="pd-dish-count">${d.count} ${d.count===1?'vote':'votes'}</span>
+          </div>`).join('')}
+      </div>`;
+    orderEl.hidden=false;
+  }
+
+  // value-for-money
+  const valEl=document.querySelector('[data-pd-value]');
+  if(valEl && stats && stats.avg_price){
+    const price=Math.round(Number(stats.avg_price));
+    const overall=Number(stats.overall_avg)||0;
+    const band = price<200?'Easy on the wallet':price<500?'Mid-range':price<1000?'A treat':'Splurge';
+    const worth = overall>=4?' · worth it':'';
+    valEl.innerHTML=`<span class="pd-value-amt">₹${price}<small>/head</small></span>
+      <span class="pd-value-band">${band}${worth}</span>
+      <span class="pd-value-n">${stats.price_count} ${Number(stats.price_count)===1?'report':'reports'}</span>`;
+    valEl.hidden=false;
+  }
+
+  // axis breakdown
+  const axesEl=document.querySelector('[data-pd-axes]');
+  const ax=stats&&stats.axes;
+  const rows=ax?[['Food','food'],['Ambience','ambience'],['Cleanliness','cleanliness'],['Staff','staff']]
+    .filter(([,k])=>ax[k]!=null).map(([lbl,k])=>({lbl,v:Number(ax[k])||0})):[];
+  if(axesEl && rows.length){
+    axesEl.innerHTML=`
+      <h3>Rated on</h3>
+      <div class="pd-axis-bars">
+        ${rows.map(r=>`
+          <div class="pd-axis-bar">
+            <span class="pd-axis-lbl">${r.lbl}</span>
+            <span class="pd-axis-track"><span class="pd-axis-fill" style="width:${(r.v/5)*100}%"></span></span>
+            <span class="pd-axis-num">${fmt(r.v)}</span>
+          </div>`).join('')}
+      </div>`;
+    axesEl.hidden=false;
+  }
 }
 
 /* ---------- toast ---------- */
@@ -1458,7 +1582,16 @@ function openModal(name){
 }
 function closeModal(m){ m.hidden=true; }
 
-let entryRateApi=null, pendingPhoto=undefined; // undefined = unchanged, null = removed
+const AXES=['food','ambience','cleanliness','staff']; // dropped-to overall avg
+let pendingPhoto=undefined; // undefined = unchanged, null = removed
+function entryOverall(){
+  const vals=AXES.map(a=>parseFloat(document.querySelector(`.axis-rate[data-axis="${a}"]`)?.dataset.value||'0')).filter(v=>v>0);
+  return vals.length? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : 0;
+}
+function refreshEntryOverall(){
+  const ov=entryOverall();
+  const el=document.querySelector('[data-entry-overall]'); if(el) el.textContent=ov?fmt(ov)+' / 5':'—';
+}
 function openEntry(placeId){
   if(!Profile.get()){ openModal('signin'); Toast.show('Create a profile first to rate'); return; }
   const p=Places.byId(placeId); if(!p) return;
@@ -1467,23 +1600,29 @@ function openEntry(placeId){
   form.placeId.value=placeId;
   form.note.value=e.note||'';
   form.visitedAt.value=e.visitedAt||todayISO();
+  form.pricePerHead.value=e.pricePerHead||'';
   document.querySelector('[data-entry-title]').innerHTML=`${esc(p.name)}`;
-  document.querySelector('[data-entry-sub]').textContent=`${p.hood} · ${p.cuisine||''} — your private notes, photo & date.`;
+  document.querySelector('[data-entry-sub]').textContent=`${p.hood} · ${p.cuisine||''} — rate each aspect, add notes, a photo & the date.`;
   pendingPhoto=undefined;
   const prev=document.querySelector('[data-photo-preview]'); const img=document.querySelector('[data-photo-img]');
   if(e.photo){ img.src=e.photo; prev.hidden=false; } else { prev.hidden=true; img.removeAttribute('src'); }
   form.querySelector('[data-photo-input]').value='';
   const del=document.querySelector('[data-entry-delete]'); del.hidden=!Entries.get(placeId);
-  // rating widget — clone-replace to drop any listeners from a previous open
-  let rateEl=document.querySelector('.entry-rate');
-  const fresh=rateEl.cloneNode(true);
-  fresh.dataset.inited=''; fresh.dataset.value=String(e.rating||0);
-  fresh.querySelector('.rate-fg').style.width=((e.rating||0)/5*100)+'%';
-  fresh.querySelector('.rate-hov').style.width='0%';
-  rateEl.replaceWith(fresh);
-  const valLbl=document.querySelector('[data-entry-rateval]');
-  entryRateApi=initRating(fresh,(v)=>{ valLbl.textContent=v?fmt(v)+' / 5':'not rated'; });
-  entryRateApi.set(e.rating||0); valLbl.textContent=e.rating?fmt(e.rating)+' / 5':'not rated';
+  // axis rating widgets — clone-replace to drop listeners from a previous open
+  const saved=e.ratings||{};
+  AXES.forEach(axis=>{
+    const cur=document.querySelector(`.axis-rate[data-axis="${axis}"]`);
+    const fresh=cur.cloneNode(true);
+    const v=Number(saved[axis])||0;
+    fresh.dataset.inited=''; fresh.dataset.value=String(v);
+    fresh.querySelector('.rate-fg').style.width=(v/5*100)+'%';
+    fresh.querySelector('.rate-hov').style.width='0%';
+    cur.replaceWith(fresh);
+    const valLbl=document.querySelector(`[data-axis-val="${axis}"]`);
+    const api=initRating(fresh,(nv)=>{ if(valLbl) valLbl.textContent=nv?fmt(nv):'—'; refreshEntryOverall(); });
+    api.set(v); if(valLbl) valLbl.textContent=v?fmt(v):'—';
+  });
+  refreshEntryOverall();
   openModal('entry');
 }
 
@@ -1596,12 +1735,35 @@ function initModals(){
     const pi=document.querySelector('[data-photo-input]'); if(pi) pi.value='';
   });
 
+  // crowdsourced menu photo: "Add/Update the menu" → hidden file input → upload
+  const menuIn=document.querySelector('[data-menu-input]');
+  document.addEventListener('click',e=>{
+    const t=e.target.closest('[data-menu-add]'); if(!t) return;
+    e.preventDefault();
+    if(!(Sync.isCloud()&&Sync.hasSession())){ Toast.show('Sign in to add a menu photo'); openModal('signin'); return; }
+    if(menuIn){ menuIn.value=''; menuIn.click(); }
+  });
+  menuIn && menuIn.addEventListener('change',()=>{
+    const file=menuIn.files&&menuIn.files[0]; if(!file||!pdCurrentPlace) return;
+    const place=pdCurrentPlace;
+    Toast.show('Compressing menu…');
+    compressImage(file,async(data)=>{
+      if(!data){ Toast.show('Could not read that image'); return; }
+      const ok=await Sync.updateMenuPhoto(place, data);
+      if(ok) openPlaceDetail(place.id); // re-render with the fresh menu
+    });
+  });
+
   // entry: save / delete
   const ef=document.querySelector('[data-entry-form]');
   ef && ef.addEventListener('submit', async e=>{ e.preventDefault();
     const id=ef.placeId.value;
-    const rating=parseFloat(document.querySelector('.entry-rate').dataset.value||'0')||0;
-    const patch={ rating, note:ef.note.value.trim(), visitedAt:ef.visitedAt.value||'' };
+    const ratings={};
+    AXES.forEach(a=>{ const v=parseFloat(document.querySelector(`.axis-rate[data-axis="${a}"]`)?.dataset.value||'0')||0; if(v) ratings[a]=v; });
+    const rating=entryOverall(); // overall = avg of the axes filled in
+    const price=parseInt(ef.pricePerHead.value,10);
+    const patch={ rating, ratings, note:ef.note.value.trim(), visitedAt:ef.visitedAt.value||'',
+      pricePerHead:(Number.isFinite(price)&&price>0)?price:0 };
     if(pendingPhoto!==undefined){
       let ph=pendingPhoto; // null clears, string sets
       if(ph && /^data:/.test(ph) && Sync.isCloud() && Sync.hasSession()){

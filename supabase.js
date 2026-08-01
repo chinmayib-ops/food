@@ -101,6 +101,23 @@
       const { error } = await sb.from('places').upsert(rows, { onConflict: 'id' });
       return error;
     },
+    // crowdsourced menu photo: anyone signed-in can refresh a place's menu
+    async updatePlaceMenu(placeId, url, handle) {
+      const { error } = await sb.from('places')
+        .update({ menu_photo_url: url, menu_updated_at: new Date().toISOString(), menu_updated_by: handle || null })
+        .eq('id', placeId);
+      return error;
+    },
+    // global aggregates (all users) — dishes, value-for-money, axis breakdown
+    async placeStats(placeId) {
+      const { data, error } = await sb.rpc('place_public_stats', { pid: placeId });
+      if (error) {
+        // PGRST202 = function not found (schema migration not run yet) — expected, stay quiet
+        if (error.code !== 'PGRST202') console.error('[placeStats] failed:', error);
+        return null;
+      }
+      return data || null;
+    },
 
     async listWishlist(uid) {
       const { data } = await sb.from('wishlist').select('place_id').eq('user_id', uid);
@@ -157,8 +174,9 @@
     _ch: null,
     subscribe(cb) {
       if (this._ch) return;
-      this._ch = sb.channel('entries-feed')
+      this._ch = sb.channel('be-feed')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, cb)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, cb)
         .subscribe();
     },
     unsubscribe() { if (this._ch) { sb.removeChannel(this._ch); this._ch = null; } }
