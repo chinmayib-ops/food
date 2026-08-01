@@ -1774,6 +1774,11 @@ function initModals(){
     }
     Entries.set(id,patch);
     closeModal(ef.closest('[data-modal]'));
+    // if the place-detail modal is open underneath, refresh it so the new
+    // rating shows immediately instead of only after it's closed
+    if(!document.querySelector('[data-modal="place"]').hidden && pdCurrentPlace && pdCurrentPlace.id===id){
+      openPlaceDetail(id);
+    }
     Toast.show('Saved <em>'+esc(Places.byId(id)?.name||'entry')+'</em>');
   });
   const ed=document.querySelector('[data-entry-delete]');
