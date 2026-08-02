@@ -19,18 +19,83 @@ const FEATURED_ID = 'brahmins-coffee-bar';
 const CUISINES = ['South Indian','North Indian','Street Food','Café','Bakery',
   'Biryani','Chinese','Continental','Desserts','Seafood','Other'];
 
-/* canonical Bengaluru areas — the datalist normalizes name variants
-   (so "BSK" and "Banashankari" don't split one area into two). */
-const BLR_AREAS = ['Banashankari','Basavanagudi','Jayanagar','JP Nagar','Gandhi Bazaar',
-  'Malleshwaram','Rajajinagar','Vijayanagar','Yeshwanthpur','Sadashivanagar','Seshadripuram',
-  'Indiranagar','Koramangala','HSR Layout','BTM Layout','Bellandur','Marathahalli','Whitefield',
-  'Sarjapur Road','Electronic City','Domlur','Ulsoor','Frazer Town','Cox Town','Cooke Town',
-  'Shivajinagar','MG Road','Brigade Road','Church Street','Lavelle Road','Residency Road',
-  'Richmond Town','Cunningham Road','Vasanth Nagar','Jayamahal','Hebbal','RT Nagar','Yelahanka',
-  'Banaswadi','Kalyan Nagar','Kammanahalli','Ramamurthy Nagar','KR Puram','Mahadevapura',
-  'Rajarajeshwari Nagar','Kengeri','Nagarbhavi','Kumaraswamy Layout','Uttarahalli','Kanakapura Road',
-  'Bannerghatta Road','JP Nagar 7th Phase','Girinagar','Hanumanthanagar','Wilson Garden',
-  'Austin Town','Langford Town','Ashok Nagar','Commercial Street','Chickpet','Majestic','KR Market'];
+/* comprehensive Bengaluru localities — the combobox also unions in the
+   live catalogue's areas, so this only needs to cover the residential
+   areas the dataset may miss. Picking from the list keeps one area from
+   being logged two ways ("BSK" vs "Banashankari"). */
+const BLR_AREAS = ['Whitefield','Sarjapur Road','Electronic City Phase I','Electronic City Phase II','Marathahalli',
+  'HSR Layout','Koramangala','Bellandur','Bannerghatta Road','Mahadevapura','JP Nagar','BTM Layout',
+  'Doddanekundi','Kanakapura Road','Indira Nagar','KR Puram','Brookefield','Thanisandra Main Road','Yelahanka',
+  'Hennur Road','Horamavu','Ramamurthy Nagar','Jayanagar','Hosur Road','Panathur','Hebbal','Kundalahalli',
+  'Marathahalli-Sarjapur Outer Ring Road','Kaggadasapura','CV Raman Nagar','Banashankari','Hosa Road',
+  'Old Airport Road','Old Madras Road','Budigere','Hoodi','Off Sarjapur Road','Varthur','Sarjapur','Harlur',
+  'Rajaji Nagar','Bommanahalli','Haralur Road','Kadugodi','HBR Layout','Raja Rajeshwari Nagar','Kasturi Nagar',
+  'Yeshwanthpur','Domlur','Vijayanagar','Kalyan Nagar','Thubarahalli','RT Nagar','Banaswadi','Begur Road',
+  'Kasavanahalli','Bilekahalli','Malleshwaram','Chandapura','Yelahanka New Town','Vidyaranyapura','Thanisandra',
+  'Hennur','AECS Layout','Devanahalli','Ulsoor','Chandapura Anekal Road','Kadubeesanahalli','Begur',
+  'Marathahalli ORR','Doddaballapur Road','Jalahalli West','Mysore Road','Sahakara Nagar','Jakkur',
+  'Bellandur Outer Ring Road','Basaveshwara Nagar','Murugeshpalya','Uttarahalli','HSR Layout Sector 2',
+  'Munnekollal','JP Nagar Phase 8','Basavanagudi','JP Nagar Phase 7','Tumkur Road','Ejipura','Nagarbhavi',
+  'Singasandra','Mathikere','Kudlu Gate','Hoskote','Jigani','Sarjapur Attibele Road','Kaikondrahalli','Arekere',
+  'HSR Layout Sector 1','TC Palya Road','Whitefield Road','Shigehalli','Sanjay Nagar','ITPL Road','Kammanahalli',
+  'New Thippasandra','HRBR Layout','Kodigehalli','Chansandra','Kengeri','Gunjur','Nagavara','Babusa Palya',
+  'Hulimavu','Tavarekere-BTM','Wilson Garden','Frazer Town','HSR Layout Sector 3','HSR Layout Sector 7',
+  'JP Nagar Phase 5','Outer Ring Road','JP Nagar Phase 6','Nelamangala','Vishweshwaraiah Layout','Richmond Town',
+  'Bommasandra','Banashankari 3rd Stage','BEML Layout','MS Palya','Kodihalli','Pai Layout','Gottigere','Cooke Town',
+  'Kumaraswamy Layout','Seegehalli','GM Palya','Devarachikkanahalli','Malleshpalya','Maradi Road','Attibele',
+  'Anjanapura','Kalkere','Kengeri Satellite Town','Vignana Nagar','Padmanabha Nagar','RMV 2nd Stage','Cox Town',
+  'B Narayanapura','Benson Town','Akshayanagar','Victoria Layout','Kodichikkanahalli','Basavanagar','Dommasandra',
+  'Varthur Road','Lingarajapuram','Mahalakshmi Layout','Silk Board','JP Nagar Phase 9','Nagondanahalli','Anekal',
+  'Yemalur','Hebbal Kempapura','Kothanur','JP Nagar Phase 1','Bagaluru','Shanthi Nagar','Basapura',
+  'Maruthi Sevanagar','Doddakannalli','HAL Layout','JP Nagar Phase 2','Horamavu Agara','OMBR Layout','Aavalahalli',
+  'Bannerghatta','Vasanth Nagar','Battarahalli','Kudlu','Kathriguppe','Thavarekere-Magadi Road','Bhoganhalli',
+  'Jeevanbheema Nagar','Hanumantha Nagar','Hegde Nagar','Amrutha Halli','MG Road','Devanahalli Road','IVC Road',
+  'Margondanahalli','Dasarahalli Hebbal','Srinivasa Nagar','Kaval Byrasandra','Abbigere','Kanaka Nagar','Rachenahalli',
+  'Adugodi','Chandra Layout','LB Shastri Nagar','Chikka Banaswadi','Bennigana Halli','New BEL Road','Belathur',
+  'Girinagar','Ganga Nagar','Hoskote Malur Road','Sarjapur Bagalur Road','Kogilu','Hongasandra',
+  'International Airport Road','Konanakunte','Doddathoguru','Wind Tunnel Road','Panduranga Nagar','Chinnapanna Halli',
+  'Shivaji Nagar','ISRO Layout','Madiwala','Siddapura','Peenya','Chamarajpet','Sadashiva Nagar','Nandini Layout',
+  'Bellary Road','Mico Layout','Vijaya Bank Colony','HSR Layout Sector 5','Seshadripuram','Ananth Nagar',
+  'Richmond Road','Garvebhavi Palya','Immadihalli','Srinagar','Sompura','Jakkasandra','Chikkalasandra','Jayamahal',
+  'Dollars Colony','Kempapura','Dodda Banasvadi','Nandi Hills','Choodasandra','Majestic','Cambridge Layout',
+  'Kammasandra','Hesaraghatta','Roopena Agrahara','Rajanukunte','Jakkuru Layout','RMV Extension','T Dasarahalli',
+  'HSR Layout Sector 6','JP Nagar Phase 4','HAL Layout2','Lavelle Road','Maruthi Nagar','Budigere Road','Nagasandra',
+  'Ramagondanahalli','Chikbanavara','Infantry Road','Jalahalli Cross','Byrathi','Jagadish Nagar','Hosakerehalli',
+  'Subramanyapura','Neeladri Nagar','Sampangi Rama Nagar','NRI Layout','Rayasandra','Laggere','Srirampura',
+  'Venkatapura','R.K. Hegde Nagar','Langford Town','Viveka Nagar','Uttarahalli Main Road','Chelekare','Neelasandra',
+  'JP Nagar Phase 3','HSR Layout Sector 4','Jagajeevanram Nagar','RMV','Carmelaram','Kartik Nagar','Mallathahalli',
+  'Hosapalaya','Thippasandra','Bagepalli','Cunningham Road','Doddabommasandra','Ullal','Dasarahalli Main Road',
+  'Vinayaka Layout','Vasanthapura','Sudhama Nagar','Richards Town','Jalahalli East','Kodathi','Doddaballapur',
+  'Gattahalli','Balagere','Kamaksipalya','Chikka Tirupathi','Doddakallasandra','Commercial Street','Bidadi',
+  'Banashankari 5th Stage','Kadugondanahalli','Andrahalli','Bagalakunte','Chikkaballapur','Lal Bagh','Gauribidanur',
+  'Nagarbhavi Circle','Annapurneshwari Nagar','Gandhi Nagar','Ashok Nagar','Soukya Road','Vittal Mallya Road',
+  'Yelachena Halli','Bhuvaneshwari Nagar','Kamanahalli','Teachers Colony','St. Johns Road','Cholanayakanahalli',
+  'Nagadevanahalli','Bidrahalli','Bikasipura','Jangamakote','Sunkadakatte','Chikkajala','Devinagar','Nayanda Halli',
+  'Kalena Agrahara','Malur-Hosur Road','Kadabagere','Guttahalli','Attiguppe','Bhoopasandra','Bannerghatta Jigani Road',
+  'Sadduguntepalya','Huskur','Thurahalli','Nallurhalli','HMT Layout','Kacharakanahalli','Bileshivale',
+  'Maruthi Nagar (Yelahanka)','Shettihalli','Haragadde','K Channasandra','Kannamangala','Byatarayanapura',
+  'Talaghattapura','Boyalahalli','Hombegowda Nagar','Rajiv Gandhi Nagar','Kamala Nagar','Doddakammanahalli',
+  'Kempegowda Nagar','Attibele - Anekal Road','Kanakapura','Gubalala','Medihalli','Kithiganur','Brigade Road',
+  'Jnana Ganga Nagar','Chikkabellandur','Koralur','Kattigenahalli','Dodda Aalada Mara Road','Chikkabidarakallu',
+  'Silver Springs Layout','Kaggalipura','Dooravani Nagar','Palace Road','Prashanth Nagar','Nobo Nagar',
+  'Kodigehalli - KR Puram','SMV Layout','Suryanagar','Kumbalgodu','Bommenahalli','Munireddy Layout','Chikkathoguru',
+  'Baiyyappanahalli','Virupakshapura','Raghavendra Colony','Shankarapura','Jaya Chamarajendra Nagar','Chinnapa Garden',
+  'Garudachar Palya','Wheeler Road','Narasapura','Ramohalli','Harohalli','Kolar Road','Anagalapura','Chokkanahalli',
+  'Gunjur Mugalur Road','Arasanakunte','Bettahalasur','Chikkakannalli','Kallumantapa','Kothanoor','Sampigehalli',
+  'Tilak Nagar','Dayananda Nagar','Bhovi Palya','Chikka Tirupathi Road','Soundarya Layout','Vittal Nagar',
+  'Ragavendra Nagar','Sonnenahalli','Chickpet','Haudin Road','Millers Road','Yelanahalli','Defence Colony - Bagalagunte',
+  'Race Course Road','Langford Road','Chintamani','Kuthaganahalli','Tharabanahalli','Shanthala Nagar','Chikkagubbi',
+  'Pattandur Agrahara','Koppa','Gollahalli','Binny Pete','Kodipur','Lake City','Munireddypalya','Azad Nagar',
+  'Rest House Road','Richards Park','Cottonpete','Dodsworth Layout','Ashirvad Colony','Doddabele','Craig Park Layout',
+  'Nelamangala - Chikkaballapura Road','Vaderahalli','Basavanna Nagar','Huttanahalli','Vijaypura','Donnenahalli',
+  'Chadalapura','Meenakunte','Lingadheeranahalli','Residency Road','Sidlaghatta','Dabaspete','Kalasipalayam',
+  'Somashetti Halli','Chikkanahalli','Kolar-Chikkaballapur Road','Singanahalli','Karuna Nagar','Belatur',
+  'Chamundi Nagar','Garden Layout','Sankey Road','Tippenahalli','Bhaktharahalli','Nehru Nagar','Venkateshpuram',
+  'Bapuji Nagar','Williams Town','Kammasandra Agrahara','Bikkanahalli','National Highway 207','Kadusonnappanahalli',
+  'Solur','Chikkaballapur-Gauribidanur Road','Doddenahalli','Weavers Colony','Hancharahalli','Devasthanagalu',
+  'Chikkabasavanapura','Nanjappa Garden','Budihal','Seenappa Layout','CQAL Layout','Shanthi Pura','Lakshmamma Layout',
+  'Madhava Nagar','Adakamaranahalli','Vehloli','Hullahalli','Tharaballi','Ganapathihalli','Ballur','Venkatagiri Kote',
+  'Kunigal Road','Essel Gardens','S.Medihalli','Koti Hosahalli','Kommaghatta'];
 
 /* ---------- seed places (real Bengaluru spots, unrated) ---------- */
 const SEED_PLACES = [
@@ -1777,6 +1842,48 @@ function openEntry(placeId){
   openModal('entry');
 }
 
+/* full Bengaluru area list = curated list ∪ live catalogue areas,
+   deduped case-insensitively and sorted. */
+function bengaluruAreas(){
+  const map=new Map(); // lower → display
+  const add=a=>{ const h=(a||'').trim(); if(!h) return; const k=h.toLowerCase(); if(!map.has(k)) map.set(k,h); };
+  BLR_AREAS.forEach(add);
+  try{ Places.registry().forEach(p=>add(p.hood)); }catch{}
+  return [...map.values()].sort((a,b)=>a.localeCompare(b));
+}
+
+/* searchable dropdown (combobox) for the add-place area field */
+function initAreaCombo(){
+  const combo=document.querySelector('[data-area-combo]'); if(!combo || combo.dataset.inited) return;
+  combo.dataset.inited='1';
+  const input=combo.querySelector('[data-area-input]');
+  const panel=combo.querySelector('[data-area-panel]');
+  const toggle=combo.querySelector('[data-area-toggle]');
+  let opts=[];
+  function render(filter){
+    const f=(filter||'').toLowerCase().trim();
+    const list=opts.filter(o=>!f||o.toLowerCase().includes(f)).slice(0,400);
+    panel.innerHTML=list.length
+      ? list.map(o=>`<button type="button" class="combo-opt" data-area-opt="${esc(o)}">${esc(o)}</button>`).join('')
+      : `<div class="combo-empty">No match — you can just type your own area name.</div>`;
+    panel.scrollTop=0;
+  }
+  function open(){ opts=bengaluruAreas(); render(input.value); panel.hidden=false; input.setAttribute('aria-expanded','true'); }
+  function close(){ panel.hidden=true; input.setAttribute('aria-expanded','false'); }
+  input.addEventListener('focus',open);
+  input.addEventListener('input',()=>{ if(panel.hidden) open(); else render(input.value); });
+  toggle.addEventListener('click',()=>{ if(panel.hidden){ open(); input.focus(); } else close(); });
+  // mousedown (not click) so the pick registers before the input blurs
+  panel.addEventListener('mousedown',e=>{ const b=e.target.closest('[data-area-opt]'); if(!b) return;
+    e.preventDefault(); input.value=b.dataset.areaOpt; close(); });
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ close(); }
+    else if(e.key==='Enter'){ const first=panel.querySelector('[data-area-opt]');
+      if(!panel.hidden && first){ e.preventDefault(); input.value=first.dataset.areaOpt; close(); } }
+  });
+  document.addEventListener('click',e=>{ if(!combo.contains(e.target)) close(); });
+}
+
 function initModals(){
   document.querySelectorAll('[data-modal]').forEach(m=>{
     if(m.dataset.modal!=='handle')
@@ -1792,9 +1899,8 @@ function initModals(){
   const fcz=document.querySelector('[data-filter-cuisine]');
   if(fcz) fcz.innerHTML='<option value="">All cuisines</option>'+opts;
 
-  // populate the Bengaluru-areas datalist for the add-place form
-  const al=document.querySelector('[data-area-list]');
-  if(al) al.innerHTML=BLR_AREAS.map(a=>`<option value="${esc(a)}"></option>`).join('');
+  // searchable area dropdown for the add-place form
+  initAreaCombo();
 
   // cloud sign-in (email magic-link)
   const sf=document.querySelector('[data-signin-form]');

@@ -394,9 +394,13 @@
       <label class="modal-field"><span>Place name</span>
         <input type="text" name="name" required maxlength="50" placeholder="e.g. Taaza Thindi" /></label>
       <label class="modal-field"><span>Area / neighbourhood</span>
-        <input type="text" name="hood" required maxlength="40" list="blr-areas" autocomplete="off" placeholder="Start typing — e.g. Banashankari" />
-        <span class="photo-fine">Pick from the list so the same area isn't logged two ways (BSK &amp; Banashankari).</span></label>
-      <datalist id="blr-areas" data-area-list></datalist>
+        <div class="combo" data-area-combo>
+          <input type="text" name="hood" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"
+            data-area-input placeholder="Search or pick an area — e.g. Banashankari" />
+          <button type="button" class="combo-caret" data-area-toggle aria-label="Show all areas">▾</button>
+          <div class="combo-panel" data-area-panel role="listbox" hidden></div>
+        </div>
+        <span class="photo-fine">Search &amp; pick from the list so the same area isn't logged two ways (BSK &amp; Banashankari).</span></label>
       <div class="modal-row">
         <label class="modal-field"><span>Cuisine</span>
           <select name="cuisine" data-cuisine-select></select></label>
