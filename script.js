@@ -1715,10 +1715,17 @@ function openModal(name){
   if((name==='addplace'||name==='entry') && !Profile.get()){
     openModal('signin'); Toast.show('Create a profile first'); return;
   }
+  // stack above any modal already open (e.g. entry opened from place detail),
+  // otherwise a later-in-DOM modal (place) paints over an earlier one (entry)
+  let top=100;
+  document.querySelectorAll('.modal-backdrop:not([hidden])').forEach(b=>{
+    if(b!==m) top=Math.max(top, parseInt(b.style.zIndex||getComputedStyle(b).zIndex,10)||100);
+  });
+  m.style.zIndex=String(top+1);
   m.hidden=false;
   const f=m.querySelector('input,textarea,select'); if(f) setTimeout(()=>f.focus(),30);
 }
-function closeModal(m){ m.hidden=true; }
+function closeModal(m){ m.hidden=true; m.style.zIndex=''; }
 
 const AXES=['taste','presentation','consistency','service','ambiance']; // avg = overall
 const AXIS_LABELS={ taste:'Taste', presentation:'Presentation', consistency:'Consistency', service:'Service', ambiance:'Ambiance' };
