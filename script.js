@@ -16,8 +16,34 @@ const KEY_PENDING_FRIEND = 'be:pendingFriend';
 
 const FEATURED_ID = 'brahmins-coffee-bar';
 
-const CUISINES = ['South Indian','North Indian','Street Food','Café','Bakery',
-  'Biryani','Chinese','Continental','Desserts','Seafood','Other'];
+const CUISINES = [
+  // Indian — regional
+  'South Indian','North Indian','Udupi','Andhra','Telangana','Hyderabadi','Chettinad','Tamil',
+  'Kerala','Malabar','Mangalorean','Coastal Karnataka','North Karnataka','Malnad','Kodava (Coorgi)',
+  'Karnataka','Punjabi','Mughlai','Awadhi (Lucknowi)','Rajasthani','Gujarati','Marwari','Maharashtrian',
+  'Goan','Konkani','Bengali','Odia','Bihari','Assamese','North Eastern','Naga','Sikkimese','Kashmiri',
+  'Sindhi','Parsi','Anglo-Indian','Indian','Pure Veg','Jain','Satvik',
+  // Indian dishes / formats
+  'Biryani','Kebab','Tandoor','Barbecue / Grill','Chaat','Street Food','South Indian Tiffin',
+  'Dosa','Idli','Thali','Rolls & Wraps','Rotis & Curries','Sweets (Mithai)','Bengali Sweets','Chettinad Seafood',
+  // Asian
+  'Chinese','Indo-Chinese','Sichuan','Cantonese','Dim Sum','Pan-Asian','Thai','Japanese','Sushi','Ramen',
+  'Korean','Vietnamese','Malaysian','Indonesian','Singaporean','Burmese','Tibetan','Momos','Nepali','Bhutanese',
+  'Sri Lankan','Filipino','Asian Fusion',
+  // Middle East / Central Asia / Africa
+  'Lebanese','Middle Eastern','Arabic','Turkish','Persian (Iranian)','Afghani','Mediterranean','Greek',
+  'Israeli','Egyptian','Moroccan','Ethiopian','African',
+  // Western
+  'Continental','Italian','Neapolitan Pizza','French','Spanish','Tapas','Portuguese','German','British',
+  'American','Tex-Mex','Mexican','Cajun','Brazilian','Peruvian','European',
+  // Formats / categories
+  'Café','Coffee','Filter Coffee','Tea & Chai','Bakery','Patisserie','Desserts','Ice Cream','Gelato',
+  'Waffles & Pancakes','Cakes & Pastries','Chocolate','Juices & Smoothies','Beverages','Bubble Tea',
+  'Fast Food','Burgers','Pizza','Sandwiches','Wraps','Hot Dogs','Fries & Snacks','Rolls','Shawarma','Falafel',
+  'Seafood','Steakhouse','BBQ','Sushi Bar','Poké','Salads & Bowls','Healthy Food','Vegan','Keto',
+  'Fine Dining','Casual Dining','Pub / Bar Food','Microbrewery','Lounge','Buffet','Food Court','Cloud Kitchen',
+  'Breakfast','Brunch','Late Night','Home Food','Fusion','Multi-Cuisine',
+  'Other'];
 
 /* comprehensive Bengaluru localities — the combobox also unions in the
    live catalogue's areas, so this only needs to cover the residential
@@ -1852,34 +1878,36 @@ function bengaluruAreas(){
   return [...map.values()].sort((a,b)=>a.localeCompare(b));
 }
 
-/* searchable dropdown (combobox) for the add-place area field */
-function initAreaCombo(){
-  const combo=document.querySelector('[data-area-combo]'); if(!combo || combo.dataset.inited) return;
+/* generic searchable dropdown (combobox). `getOptions` returns the full
+   option list; `emptyMsg` shows when nothing matches. Used for both the
+   area and cuisine fields on the add-place form. */
+function initCombo(combo, getOptions, emptyMsg){
+  if(!combo || combo.dataset.inited) return;
   combo.dataset.inited='1';
-  const input=combo.querySelector('[data-area-input]');
-  const panel=combo.querySelector('[data-area-panel]');
-  const toggle=combo.querySelector('[data-area-toggle]');
+  const input=combo.querySelector('[data-combo-input]');
+  const panel=combo.querySelector('[data-combo-panel]');
+  const toggle=combo.querySelector('[data-combo-toggle]');
   let opts=[];
   function render(filter){
     const f=(filter||'').toLowerCase().trim();
     const list=opts.filter(o=>!f||o.toLowerCase().includes(f)).slice(0,400);
     panel.innerHTML=list.length
-      ? list.map(o=>`<button type="button" class="combo-opt" data-area-opt="${esc(o)}">${esc(o)}</button>`).join('')
-      : `<div class="combo-empty">No match — you can just type your own area name.</div>`;
+      ? list.map(o=>`<button type="button" class="combo-opt" data-combo-opt="${esc(o)}">${esc(o)}</button>`).join('')
+      : `<div class="combo-empty">${esc(emptyMsg||'No match — type your own.')}</div>`;
     panel.scrollTop=0;
   }
-  function open(){ opts=bengaluruAreas(); render(input.value); panel.hidden=false; input.setAttribute('aria-expanded','true'); }
+  function open(){ opts=getOptions(); render(input.value); panel.hidden=false; input.setAttribute('aria-expanded','true'); }
   function close(){ panel.hidden=true; input.setAttribute('aria-expanded','false'); }
   input.addEventListener('focus',open);
   input.addEventListener('input',()=>{ if(panel.hidden) open(); else render(input.value); });
   toggle.addEventListener('click',()=>{ if(panel.hidden){ open(); input.focus(); } else close(); });
   // mousedown (not click) so the pick registers before the input blurs
-  panel.addEventListener('mousedown',e=>{ const b=e.target.closest('[data-area-opt]'); if(!b) return;
-    e.preventDefault(); input.value=b.dataset.areaOpt; close(); });
+  panel.addEventListener('mousedown',e=>{ const b=e.target.closest('[data-combo-opt]'); if(!b) return;
+    e.preventDefault(); input.value=b.dataset.comboOpt; close(); });
   input.addEventListener('keydown',e=>{
     if(e.key==='Escape'){ close(); }
-    else if(e.key==='Enter'){ const first=panel.querySelector('[data-area-opt]');
-      if(!panel.hidden && first){ e.preventDefault(); input.value=first.dataset.areaOpt; close(); } }
+    else if(e.key==='Enter'){ const first=panel.querySelector('[data-combo-opt]');
+      if(!panel.hidden && first){ e.preventDefault(); input.value=first.dataset.comboOpt; close(); } }
   });
   document.addEventListener('click',e=>{ if(!combo.contains(e.target)) close(); });
 }
@@ -1893,14 +1921,16 @@ function initModals(){
   document.addEventListener('keydown',e=>{ if(e.key==='Escape')
     document.querySelectorAll('[data-modal]:not([hidden])').forEach(m=>{ if(m.dataset.modal!=='handle') closeModal(m); }); });
 
-  // populate cuisine selects
+  // toolbar cuisine filter stays a native select (populated from the list)
   const opts=CUISINES.map(c=>`<option value="${c}">${c}</option>`).join('');
-  const cz=document.querySelector('[data-cuisine-select]'); if(cz) cz.innerHTML=opts;
   const fcz=document.querySelector('[data-filter-cuisine]');
   if(fcz) fcz.innerHTML='<option value="">All cuisines</option>'+opts;
 
-  // searchable area dropdown for the add-place form
-  initAreaCombo();
+  // searchable dropdowns on the add-place form: area + cuisine
+  initCombo(document.querySelector('[data-area-combo]'), bengaluruAreas,
+    'No match — you can just type your own area name.');
+  initCombo(document.querySelector('[data-cuisine-combo]'), ()=>CUISINES,
+    'No match — you can just type your own cuisine.');
 
   // cloud sign-in (email magic-link)
   const sf=document.querySelector('[data-signin-form]');

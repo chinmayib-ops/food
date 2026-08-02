@@ -396,17 +396,20 @@
       <label class="modal-field"><span>Area / neighbourhood</span>
         <div class="combo" data-area-combo>
           <input type="text" name="hood" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"
-            data-area-input placeholder="Search or pick an area — e.g. Banashankari" />
-          <button type="button" class="combo-caret" data-area-toggle aria-label="Show all areas">▾</button>
-          <div class="combo-panel" data-area-panel role="listbox" hidden></div>
+            data-combo-input placeholder="Search or pick an area — e.g. Banashankari" />
+          <button type="button" class="combo-caret" data-combo-toggle aria-label="Show all areas">▾</button>
+          <div class="combo-panel" data-combo-panel role="listbox" hidden></div>
         </div>
         <span class="photo-fine">Search &amp; pick from the list so the same area isn't logged two ways (BSK &amp; Banashankari).</span></label>
-      <div class="modal-row">
-        <label class="modal-field"><span>Cuisine</span>
-          <select name="cuisine" data-cuisine-select></select></label>
-        <label class="modal-field"><span>Signature dish</span>
-          <input type="text" name="dish" maxlength="40" placeholder="e.g. Set Dosa" /></label>
-      </div>
+      <label class="modal-field"><span>Cuisine</span>
+        <div class="combo" data-cuisine-combo>
+          <input type="text" name="cuisine" maxlength="40" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"
+            data-combo-input placeholder="Search or pick a cuisine — e.g. Udupi" />
+          <button type="button" class="combo-caret" data-combo-toggle aria-label="Show all cuisines">▾</button>
+          <div class="combo-panel" data-combo-panel role="listbox" hidden></div>
+        </div></label>
+      <label class="modal-field"><span>Signature dish</span>
+        <input type="text" name="dish" maxlength="40" placeholder="e.g. Set Dosa" /></label>
       <label class="modal-field"><span>Google Maps link <em>(optional — the surest way to pin the exact spot)</em></span>
         <input type="url" name="gmaps" maxlength="400" inputmode="url" placeholder="Paste a maps.app.goo.gl or google.com/maps link" /></label>
       <label class="modal-check"><input type="checkbox" name="wishlist" /> <span>Add to my wishlist (haven't been yet)</span></label>
