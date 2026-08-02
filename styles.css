@@ -2984,6 +2984,8 @@ body:not(.signed-in) .your-rate-row.signed-in{ display: none; }
   transition: border-color .15s, color .15s, background .15s;
 }
 .pd-act:hover{ border-color: var(--terra); color: var(--terra); }
+.pd-act.on{ background: var(--terra); border-color: var(--terra); color: var(--paper); }
+.pd-act.on:hover{ background: var(--terra-dk); border-color: var(--terra-dk); color: var(--paper); }
 
 .pd-section{ margin-top: 26px; }
 .pd-section h3{

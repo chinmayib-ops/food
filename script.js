@@ -594,7 +594,7 @@ function openPlaceDetail(placeId){
     ${recentBlurb?`<div class="pd-recent">${recentBlurb}</div>`:''}
 
     <div class="pd-actions">
-      <button type="button" class="pd-act" data-wish="${esc(placeId)}">${onWish?'★ Wishlisted':'☆ Add to wishlist'}</button>
+      <button type="button" class="pd-act${onWish?' on':''}" data-wish="${esc(placeId)}">${onWish?'★ Wishlisted':'☆ Add to wishlist'}</button>
       <button type="button" class="pd-act" data-edit-entry="${esc(placeId)}">${mine?'Edit your review':'Add note &amp; photo'}</button>
     </div>
 
@@ -2432,7 +2432,12 @@ function initActions(){
     if(t.matches('[data-edit-entry]')){ e.preventDefault(); openEntry(t.dataset.editEntry); return; }
     if(t.matches('[data-wish]')){ e.preventDefault(); e.stopPropagation();
       const on=Wishlist.toggle(t.dataset.wish);
-      Toast.show(on?'Added to wishlist':'Removed from wishlist'); return; }
+      Toast.show(on?'Added to wishlist':'Removed from wishlist');
+      // if the place-detail modal is open for this place, refresh its button
+      if(!document.querySelector('[data-modal="place"]').hidden && pdCurrentPlace && pdCurrentPlace.id===t.dataset.wish){
+        openPlaceDetail(t.dataset.wish);
+      }
+      return; }
     if(t.hasAttribute('data-add-place')){ e.preventDefault(); openModal('addplace'); return; }
     if(t.hasAttribute('data-signin')){ e.preventDefault(); openModal('signin'); return; }
     if(t.hasAttribute('data-print')){ e.preventDefault();
