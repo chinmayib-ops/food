@@ -1932,16 +1932,59 @@ function initModals(){
   initCombo(document.querySelector('[data-cuisine-combo]'), ()=>CUISINES,
     'No match — you can just type your own cuisine.');
 
-  // cloud sign-in (email magic-link)
-  const sf=document.querySelector('[data-signin-form]');
-  sf && sf.addEventListener('submit', async e=>{ e.preventDefault();
-    const email=(new FormData(sf).get('email')||'').toString().trim();
-    if(!email || !(window.Cloud&&window.Cloud.enabled)) return;
-    const btn=sf.querySelector('button'); if(btn) btn.disabled=true;
-    const { error }=await window.Cloud.Auth.signInEmail(email);
+  const cloud=()=> window.Cloud && window.Cloud.enabled;
+
+  // Continue with Google (redirects out, returns signed-in)
+  const gb=document.querySelector('[data-signin-google]');
+  gb && gb.addEventListener('click', async ()=>{
+    if(!cloud()) return;
+    gb.disabled=true;
+    const { error }=await window.Cloud.Auth.signInGoogle();
+    if(error){ gb.disabled=false; Toast.show('Google sign-in unavailable — try email'); }
+  });
+
+  // Email + password (one form, toggles between sign in and create account)
+  let pwMode='signin';
+  const pf=document.querySelector('[data-signin-pw]');
+  const setPwMode=m=>{ pwMode=m;
+    const sub=document.querySelector('[data-pw-submit]');
+    if(sub) sub.innerHTML=(m==='signup'?'Create account':'Sign in')+' <span class="arrow">→</span>';
+    document.querySelectorAll('[data-pw-line]').forEach(el=>{ el.hidden = el.dataset.pwLine!==m; });
+    const pwIn=pf&&pf.querySelector('input[name="password"]');
+    if(pwIn) pwIn.setAttribute('autocomplete', m==='signup'?'new-password':'current-password');
+  };
+  document.querySelectorAll('[data-pw-toggle]').forEach(b=>b.addEventListener('click',()=>setPwMode(pwMode==='signin'?'signup':'signin')));
+  pf && pf.addEventListener('submit', async e=>{ e.preventDefault();
+    if(!cloud()) return;
+    const fd=new FormData(pf);
+    const email=(fd.get('email')||'').toString().trim();
+    const password=(fd.get('password')||'').toString();
+    if(!email||password.length<6){ Toast.show('Enter an email and a 6+ character password'); return; }
+    const btn=pf.querySelector('[data-pw-submit]'); if(btn) btn.disabled=true;
+    let res;
+    if(pwMode==='signup') res=await window.Cloud.Auth.signUpPassword(email,password);
+    else res=await window.Cloud.Auth.signInPassword(email,password);
     if(btn) btn.disabled=false;
+    if(res.error){ Toast.show(esc(res.error.message||'Could not sign in')); return; }
+    // signup with email-confirmation on returns no session yet
+    if(pwMode==='signup' && !(res.data&&res.data.session)){
+      Toast.show('Check <em>'+esc(email)+'</em> to confirm your account'); return;
+    }
+    pf.reset(); closeModal(pf.closest('[data-modal]'));
+    // onChange in Sync.boot handles profile + pull
+  });
+
+  // magic-link fallback ("email me a link instead")
+  const ml=document.querySelector('[data-signin-magic]');
+  ml && ml.addEventListener('click', async ()=>{
+    if(!cloud()) return;
+    const email=(pf&&pf.querySelector('input[name="email"]').value||'').trim();
+    if(!email){ Toast.show('Type your email first'); pf&&pf.querySelector('input[name="email"]').focus(); return; }
+    ml.disabled=true;
+    const { error }=await window.Cloud.Auth.signInEmail(email);
+    ml.disabled=false;
     if(error){ Toast.show('Could not send link — check the email'); return; }
-    sf.reset(); closeModal(sf.closest('[data-modal]'));
+    closeModal(pf.closest('[data-modal]'));
     Toast.show('Check <em>'+esc(email)+'</em> for your sign-in link ✉');
   });
 

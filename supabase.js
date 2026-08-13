@@ -34,6 +34,21 @@
         options: { emailRedirectTo: location.origin + location.pathname }
       });
     },
+    async signInGoogle() {
+      return sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: location.origin + location.pathname }
+      });
+    },
+    async signUpPassword(email, password) {
+      return sb.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: location.origin + location.pathname }
+      });
+    },
+    async signInPassword(email, password) {
+      return sb.auth.signInWithPassword({ email, password });
+    },
     async signOut() { return sb.auth.signOut(); },
     onChange(cb) { sb.auth.onAuthStateChange((evt, sess) => cb(evt, sess)); }
   };

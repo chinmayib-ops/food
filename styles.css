@@ -1302,6 +1302,34 @@ body::after{
   color: var(--ink-soft); text-align: center;
   margin: 16px 0 0;
 }
+.modal-fine .link-btn{ font-size: 10px; letter-spacing: .18em; }
+
+/* ---- auth: Google button, divider, mode switch ---- */
+.google-btn{
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 13px 16px; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--ink);
+  font-family: var(--ff-mono); font-size: 12px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink);
+  transition: background .15s;
+}
+.google-btn:hover{ background: var(--paper-2); }
+.google-btn:disabled{ opacity: .55; cursor: default; }
+.g-ico{ width: 18px; height: 18px; flex-shrink: 0; }
+.auth-divider{
+  display: flex; align-items: center; gap: 12px; margin: 18px 0;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft);
+}
+.auth-divider::before, .auth-divider::after{
+  content: ''; flex: 1; height: 1px; background: var(--rule);
+}
+.auth-switch{
+  font-family: var(--ff-mono); font-size: 11px;
+  letter-spacing: .04em; color: var(--ink-soft);
+  text-align: center; margin: 14px 0 0;
+}
+.auth-switch .link-btn{ font-size: 11px; letter-spacing: .06em; }
 
 /* ============ TOAST ============ */
 .toast{
